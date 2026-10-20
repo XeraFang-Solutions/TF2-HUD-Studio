@@ -1,0 +1,114 @@
+# Reusable: builds portable apps for every supported platform and uploads them as workflow artifacts.
+# Called by release.yml (stable, version from VERSION) and cutting-edge.yml (VERSION + commit hash).
+name: Build
+
+on:
+  workflow_call:
+    inputs:
+      channel:
+        description: "stable or edge"
+        required: true
+        type: string
+    outputs:
+      version:
+        description: "The app version that was built"
+        value: ${{ jobs.version.outputs.version }}
+
+permissions:
+  contents: read
+
+jobs:
+  version:
+    name: Resolve version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - id: v
+        run: node scripts/set-version.mjs ${{ inputs.channel == 'edge' && '--edge' || '' }}
+
+  build:
+    name: ${{ matrix.name }}
+    needs: version
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows x64
+            os: windows-latest
+            target: ""
+            asset: windows-x64.exe
+          - name: Linux x86_64
+            os: ubuntu-22.04
+            target: ""
+            asset: linux-x86_64.AppImage
+          - name: macOS (Apple Silicon + Intel)
+            os: macos-latest
+            target: universal-apple-darwin
+            asset: macos-universal.zip
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libfuse2
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ runner.os == 'macOS' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target || 'native' }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/desktop/package-lock.json
+
+      - name: Set version ${{ needs.version.outputs.version }}
+        run: node scripts/set-version.mjs ${{ needs.version.outputs.version }}
+
+      - name: Install frontend dependencies
+        working-directory: apps/desktop
+        run: npm ci
+
+      # Portable builds only: a single .exe on Windows, an AppImage on Linux, a zipped .app on macOS.
+      - name: Build
+        working-directory: apps/desktop
+        shell: bash
+        run: |
+          case "$RUNNER_OS" in
+            Windows) npm run tauri -- build --no-bundle ;;
+            Linux)   npm run tauri -- build --bundles appimage ;;
+            macOS)   npm run tauri -- build --target "${{ matrix.target }}" --bundles app ;;
+          esac
+
+      - name: Collect portable build
+        shell: bash
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          mkdir -p out
+          NAME="TF2-HUD-Studio-${VERSION}-${{ matrix.asset }}"
+          case "$RUNNER_OS" in
+            Windows) cp target/release/tf2-hud-studio.exe "out/$NAME" ;;
+            Linux)   cp target/release/bundle/appimage/*.AppImage "out/$NAME" && chmod +x "out/$NAME" ;;
+            macOS)   ditto -c -k --keepParent target/universal-apple-darwin/release/bundle/macos/*.app "out/$NAME" ;;
+          esac
+          ls -la out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bundles-${{ runner.os }}
+          path: out/*
+          if-no-files-found: error
+          retention-days: 7

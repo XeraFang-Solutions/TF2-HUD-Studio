@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/XeraFang-Solutions/TF2-HUD-Studio/security/advisories/new
+    about: Please report security problems privately, not as a public issue.
+  - name: Read the wiki
+    url: https://github.com/XeraFang-Solutions/TF2-HUD-Studio/wiki
+    about: Guides, FAQ and troubleshooting.

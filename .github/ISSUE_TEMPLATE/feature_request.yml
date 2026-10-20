@@ -1,0 +1,44 @@
+name: Feature request
+description: An idea that would make building HUDs easier.
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: Describe the problem or workflow first, not the solution.
+      placeholder: When I tweak crosshair positions I have to switch between the studio and the game a lot…
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help?
+      description: How you imagine it working. Mockups are welcome.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Workarounds or alternatives
+      description: How you handle this today, or other tools that do it well.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Designer / canvas
+        - Inspector
+        - Scheme editor
+        - Animations
+        - Source editor / external editors
+        - Images / assets
+        - Install / export
+        - Other
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: Contributing
+      options:
+        - label: I'd like to help build this.

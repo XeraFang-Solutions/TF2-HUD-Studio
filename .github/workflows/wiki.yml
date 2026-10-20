@@ -1,0 +1,38 @@
+# Publishes the wiki/ folder to the GitHub wiki, so wiki pages are reviewed in pull requests like code.
+# One-time setup: enable the wiki in the repository settings and create any first page in the web UI
+# (GitHub only creates the wiki's git repository after that).
+name: Wiki
+
+on:
+  push:
+    branches: [main]
+    paths: ["wiki/**"]
+  workflow_dispatch:
+
+concurrency:
+  group: wiki
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: Publish wiki
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Push wiki/ to the GitHub wiki
+        env:
+          TOKEN: ${{ github.token }}
+        run: |
+          git clone "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.wiki.git" "$RUNNER_TEMP/wiki" || {
+            echo "::error::The wiki repository doesn't exist yet. Enable the wiki in Settings and create a first page, then re-run this workflow."; exit 1; }
+          rsync -a --delete --exclude .git wiki/ "$RUNNER_TEMP/wiki/"
+          cd "$RUNNER_TEMP/wiki"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then echo "Wiki already up to date"; exit 0; fi
+          git commit -m "Sync wiki from ${GITHUB_SHA::7}"
+          git push

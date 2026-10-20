@@ -1,0 +1,67 @@
+name: Bug report
+description: Something in TF2 HUD Studio doesn't work, crashes or loses data.
+title: "[Bug] "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! If the problem is that the **preview looks different from the game**, please use the
+        *Preview doesn't match TF2* form instead.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+      placeholder: I dragged HudPlayerHealth and saved, then the file lost its comments…
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the HUD …
+        2. Open resource/ui/hudplayerhealth.res
+        3. …
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Shown at the bottom of Settings (for example 1.0.0 or 1.0.0-edge.g1a2b3c4).
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows 11
+        - Windows 10
+        - Linux (desktop)
+        - Steam Deck (desktop mode)
+        - macOS (Apple Silicon)
+        - macOS (Intel)
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: hud
+    attributes:
+      label: HUD
+      description: Which HUD were you editing? A link helps a lot if it's public.
+      placeholder: budhud, toonhud, my own HUD…
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error messages or screenshots
+      description: Paste any error text, or drag screenshots in here.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched the existing issues and this hasn't been reported.
+          required: true

@@ -1,0 +1,65 @@
+# Builds every push to main and publishes it as the rolling "cutting-edge" pre-release.
+# These builds have features before they're polished; the version is VERSION plus the commit hash
+# (e.g. 1.0.0-edge.g3f2a1bc), and the release always points at the newest commit.
+name: Cutting edge
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - "wiki/**"
+      - "artwork/**"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/PULL_REQUEST_TEMPLATE.md"
+  workflow_dispatch:
+
+concurrency:
+  group: cutting-edge
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    uses: ./.github/workflows/build.yml
+    with:
+      channel: edge
+
+  publish:
+    name: Publish cutting edge
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Replace the cutting-edge pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          mapfile -t FILES < <(find dist -type f | sort)
+          printf '%s\n' "${FILES[@]}"
+          SHORT="${GITHUB_SHA::7}"
+          cat > notes.md <<NOTES
+          **Cutting edge build of [\`$SHORT\`](https://github.com/$GITHUB_REPOSITORY/commit/$GITHUB_SHA)** — version \`$VERSION\`.
+
+          This is built automatically from the latest commit on \`main\`. It has the newest features before they're polished, so expect rough edges and keep backups of your HUDs. For the stable version, use the [latest release](https://github.com/$GITHUB_REPOSITORY/releases/latest).
+
+          Portable builds: Windows \`*-windows-x64.exe\` · Linux \`*-linux-x86_64.AppImage\` · macOS \`*-macos-universal.zip\`. Builds are not code-signed.
+
+          **Changes since the last stable release:** https://github.com/$GITHUB_REPOSITORY/compare/v$(tr -d '[:space:]' < VERSION)...$GITHUB_SHA
+          NOTES
+          gh release delete cutting-edge --cleanup-tag --yes 2>/dev/null || true
+          git push origin --delete refs/tags/cutting-edge 2>/dev/null || true
+          gh release create cutting-edge "${FILES[@]}" \
+            --target "$GITHUB_SHA" \
+            --title "Cutting edge ($SHORT)" \
+            --notes-file notes.md \
+            --prerelease \
+            --latest=false

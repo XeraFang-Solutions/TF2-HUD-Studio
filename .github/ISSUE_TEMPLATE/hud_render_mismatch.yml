@@ -1,0 +1,57 @@
+name: Preview doesn't match TF2
+description: An element is in the wrong place, the wrong size or colour, or missing, compared with the game.
+title: "[Render] "
+labels: ["preview-accuracy", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        These reports are how the preview gets better. A screenshot **from the game** next to one **from the studio**,
+        taken at the same resolution, is the most useful thing you can send.
+  - type: input
+    id: element
+    attributes:
+      label: Element and file
+      placeholder: PlayerStatusHealthValue in resource/ui/hudplayerhealth.res
+    validations:
+      required: true
+  - type: textarea
+    id: difference
+    attributes:
+      label: What's different?
+      placeholder: In game the number is 4 units lower and right-aligned; the studio shows it centered.
+    validations:
+      required: true
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots (game and studio)
+      description: Please use the same resolution in both. Set it in the studio's toolbar.
+    validations:
+      required: true
+  - type: input
+    id: resolution
+    attributes:
+      label: Resolution
+      placeholder: 1920 × 1080
+    validations:
+      required: true
+  - type: input
+    id: hud
+    attributes:
+      label: HUD and where to get it
+      description: A link to the HUD (or attach a zip of the files involved).
+    validations:
+      required: true
+  - type: textarea
+    id: snippet
+    attributes:
+      label: Relevant .res snippet
+      description: The block(s) for the element, including any pin_to_sibling target.
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: TF2 HUD Studio version
+    validations:
+      required: true

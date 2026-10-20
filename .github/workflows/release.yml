@@ -1,0 +1,80 @@
+# Publishes a stable release whenever VERSION changes on main.
+# Bump VERSION (e.g. 1.0.0 -> 1.1.0), merge to main, and this builds every platform and publishes vX.Y.Z.
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths: [VERSION]
+  workflow_dispatch:
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    name: Check version
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="$(tr -d '[:space:]' < VERSION)"
+          if ! echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error file=VERSION::VERSION must be MAJOR.MINOR.PATCH (got '$VERSION')"; exit 1
+          fi
+          if gh release view "v$VERSION" >/dev/null 2>&1 || git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" >/dev/null; then
+            echo "::error file=VERSION::v$VERSION is already released. Bump VERSION to publish a new release."; exit 1
+          fi
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: check
+    uses: ./.github/workflows/build.yml
+    with:
+      channel: stable
+
+  publish:
+    name: Publish ${{ needs.check.outputs.tag }}
+    needs: [check, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.check.outputs.tag }}
+        run: |
+          mapfile -t FILES < <(find dist -type f | sort)
+          printf '%s\n' "${FILES[@]}"
+          cat > notes.md <<NOTES
+          ## Downloads
+
+          Portable builds — nothing to install, just download and run.
+
+          | Platform | File |
+          | --- | --- |
+          | Windows 10/11 (x64) | \`*-windows-x64.exe\` |
+          | Linux (x86_64) | \`*-linux-x86_64.AppImage\` (make it executable, then run) |
+          | macOS 11+ (Apple Silicon and Intel) | \`*-macos-universal.zip\` (unzip, then open the app) |
+
+          Builds are not code-signed yet: Windows SmartScreen may ask you to confirm ("More info" → "Run anyway"), and on macOS right-click the app and choose **Open** the first time.
+          NOTES
+          gh release create "$TAG" "${FILES[@]}" \
+            --target "$GITHUB_SHA" \
+            --title "TF2 HUD Studio ${TAG#v}" \
+            --notes-file notes.md \
+            --generate-notes \
+            --latest

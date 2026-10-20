@@ -1,0 +1,105 @@
+# Tests everything on every commit and pull request.
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  rust:
+    name: Rust (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/desktop/package-lock.json
+      # The desktop crate embeds the built frontend, so build it first.
+      - name: Build frontend
+        working-directory: apps/desktop
+        run: |
+          npm ci
+          npm run build
+      - name: Formatting
+        if: runner.os == 'Linux'
+        run: cargo fmt --all -- --check
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Tests
+        run: cargo test --workspace
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/desktop/package-lock.json
+      - working-directory: apps/desktop
+        run: npm ci
+      - name: Type check and build
+        working-directory: apps/desktop
+        run: npm run build
+      - name: Layout and animation engine tests
+        working-directory: apps/desktop
+        run: npm test
+
+  corpus:
+    name: Real HUD corpus
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      # A large public HUD with deep #base chains: every file must round-trip byte-for-byte and resolve.
+      - name: Fetch budhud
+        run: git clone --depth 1 https://github.com/rbjaxter/budhud.git "$RUNNER_TEMP/budhud"
+      - name: Round-trip and resolve
+        env:
+          HUD_CORPUS_PATH: ${{ runner.temp }}/budhud
+        run: cargo test -p hud-syntax -p hud-core --test solar_light_corpus --test real_hud -- --nocapture
+
+  version:
+    name: VERSION
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: VERSION is valid and the app files are in sync
+        run: |
+          node scripts/set-version.mjs
+          if ! git diff --quiet; then
+            echo "::warning::App version files don't match VERSION. Run 'npm run version:sync' and commit the result (release builds set it automatically)."
+            git --no-pager diff --stat
+          fi
