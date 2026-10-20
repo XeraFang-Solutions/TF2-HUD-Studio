@@ -21,7 +21,7 @@ jobs:
     name: Publish wiki
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Push wiki/ to the GitHub wiki
         env:
           TOKEN: ${{ github.token }}
