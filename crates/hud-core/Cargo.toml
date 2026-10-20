@@ -16,4 +16,4 @@ base64 = "0.22"
 dunce = "1"
 
 [target.'cfg(windows)'.dependencies]
-winreg = "0.52"
+winreg = "0.56"
