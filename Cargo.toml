@@ -1,0 +1,3 @@
+[workspace]
+members = ["apps/desktop/src-tauri", "crates/hud-syntax", "crates/hud-core"]
+resolver = "2"

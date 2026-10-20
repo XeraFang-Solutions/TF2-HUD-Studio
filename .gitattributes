@@ -1,0 +1,15 @@
+* text=auto eol=lf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# HUD fixtures must keep their exact bytes (CRLF, UTF-16, odd encodings) for round-trip tests.
+fixtures/** -text
+
+*.png binary
+*.ico binary
+*.icns binary
+*.vtf binary
+*.vpk binary
+*.ttf binary
+*.otf binary
+*.woff2 binary

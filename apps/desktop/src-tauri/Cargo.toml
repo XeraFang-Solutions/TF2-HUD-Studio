@@ -1,0 +1,24 @@
+[package]
+name = "tf2-hud-studio"
+version = "1.0.0"
+edition = "2021"
+license = "GPL-2.0-only"
+repository = "https://github.com/XeraFang-Solutions/TF2-HUD-Studio"
+build = "build.rs"
+
+[lib]
+name = "tf2_hud_studio_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+dunce = "1"
+open = "5"
+hud-syntax = { path = "../../../crates/hud-syntax" }
+hud-core = { path = "../../../crates/hud-core" }
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }

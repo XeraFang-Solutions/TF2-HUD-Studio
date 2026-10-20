@@ -1,0 +1,17 @@
+{
+  "name": "tf2-hud-studio",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix apps/desktop run dev",
+    "tauri:dev": "npm --prefix apps/desktop run tauri:dev",
+    "tauri:build": "npm --prefix apps/desktop run tauri:build",
+    "build:web": "npm --prefix apps/desktop run build",
+    "test": "cargo test --workspace && npm --prefix apps/desktop test",
+    "version:sync": "node scripts/set-version.mjs"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.12.3"
+  },
+  "license": "GPL-2.0-only",
+  "repository": "github:XeraFang-Solutions/TF2-HUD-Studio"
+}

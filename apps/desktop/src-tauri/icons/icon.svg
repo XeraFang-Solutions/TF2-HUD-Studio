@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+<defs>
+ <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a3328"/><stop offset="1" stop-color="#2a1d17"/></linearGradient>
+ <linearGradient id="cr" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbf0d8"/><stop offset="1" stop-color="#e3cfa6"/></linearGradient>
+ <radialGradient id="glow" cx="0.5" cy="0.42" r="0.6"><stop offset="0" stop-color="#b8383b" stop-opacity="0.55"/><stop offset="1" stop-color="#b8383b" stop-opacity="0"/></radialGradient>
+</defs>
+<rect x="8" y="8" width="496" height="496" rx="112" fill="url(#bg)"/>
+<rect x="8" y="8" width="496" height="496" rx="112" fill="url(#glow)"/>
+<rect x="11" y="11" width="490" height="490" rx="109" fill="none" stroke="#ffffff" stroke-opacity="0.08" stroke-width="6"/>
+<path d="M194 124 H318 V194 H388 V318 H318 V388 H194 V318 H124 V194 H194 Z" fill="#1a110d" opacity="0.55" transform="translate(0 14)"/>
+<path d="M194 124 H318 V194 H388 V318 H318 V388 H194 V318 H124 V194 H194 Z" fill="url(#cr)" stroke="#b8383b" stroke-width="16" stroke-linejoin="round"/>
+<path d="M78 174 L78 78 L174 78" fill="none" stroke="#f0a43a" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/><path d="M434 174 L434 78 L338 78" fill="none" stroke="#f0a43a" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/><path d="M78 338 L78 434 L174 434" fill="none" stroke="#f0a43a" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/><path d="M434 338 L434 434 L338 434" fill="none" stroke="#f0a43a" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/><rect x="63" y="63" width="30" height="30" rx="5" fill="#2a1d17" stroke="#f0a43a" stroke-width="9"/><rect x="419" y="63" width="30" height="30" rx="5" fill="#2a1d17" stroke="#f0a43a" stroke-width="9"/><rect x="63" y="419" width="30" height="30" rx="5" fill="#2a1d17" stroke="#f0a43a" stroke-width="9"/><rect x="419" y="419" width="30" height="30" rx="5" fill="#2a1d17" stroke="#f0a43a" stroke-width="9"/>
+</svg>

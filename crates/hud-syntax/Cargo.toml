@@ -1,0 +1,8 @@
+[package]
+name="hud-syntax"
+version="0.1.0"
+edition="2021"
+license = "GPL-2.0-only"
+repository = "https://github.com/XeraFang-Solutions/TF2-HUD-Studio"
+[dependencies]
+serde={version="1",features=["derive"]}

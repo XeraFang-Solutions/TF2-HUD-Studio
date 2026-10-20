@@ -1,0 +1,22 @@
+# Build output
+/target/
+apps/desktop/dist/
+apps/desktop/src-tauri/gen/schemas/
+out/
+
+# Dependencies
+node_modules/
+
+# Editor and OS clutter
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Temporary files the studio writes next to a file while saving
+*.hudstudio-tmp
+
+# Local archives
+*.zip

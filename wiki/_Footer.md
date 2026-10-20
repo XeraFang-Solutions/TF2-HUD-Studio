@@ -1,0 +1,1 @@
+[Download](https://github.com/XeraFang-Solutions/TF2-HUD-Studio/releases/latest) · [Report a bug](https://github.com/XeraFang-Solutions/TF2-HUD-Studio/issues/new/choose) · [Source](https://github.com/XeraFang-Solutions/TF2-HUD-Studio) · GPL-2.0 · Not affiliated with Valve
