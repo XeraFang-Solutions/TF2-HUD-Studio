@@ -1278,7 +1278,7 @@ dependencies = [
  "base64 0.22.1",
  "dunce",
  "hud-syntax",
- "png 0.17.16",
+ "png 0.18.1",
  "regex",
  "serde",
  "serde_json",
