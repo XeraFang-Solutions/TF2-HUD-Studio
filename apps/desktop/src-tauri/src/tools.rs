@@ -162,7 +162,7 @@ fn search_tool(def: &ToolDef) -> Option<PathBuf> {
     #[cfg(windows)]
     {
         let mut roots: Vec<PathBuf> =
-            ["ProgramFiles", "ProgramFiles(x86)", "ProgramW6432"].iter().filter_map(|e| std::env::var_os(e)).map(PathBuf::from).collect();
+            ["ProgramFiles", "ProgramFiles(x86)", "ProgramW6432"].iter().filter_map(std::env::var_os).map(PathBuf::from).collect();
         if let Some(local) = std::env::var_os("LOCALAPPDATA") {
             roots.push(PathBuf::from(&local).join("Programs"));
             roots.push(PathBuf::from(local));
