@@ -8,12 +8,11 @@ resolution you choose, as the game does.
 ## Positions (`xpos`, `ypos`)
 | Value | Meaning |
 | --- | --- |
-| `10` | 10 units from the left/top edge of the parent |
-| `r10` | 10 units from the **right/bottom** edge (the element's far edge sits there) |
-| `c-50` | 50 units left/up of the **center** |
-| `s0.5` | a fraction of the parent's size, here 50 % |
-| `p0.1` | a proportion of the screen |
-| `cs-0.5` / `rs1` | centered or right-aligned, combined with a size proportion |
+| `10` | 10 units from the parent's left/top edge |
+| `r10` | measured from the **right/bottom** edge: the element's left/top edge sits 10 units in from it (so `r110` with `wide 100` leaves a 10-unit gap) |
+| `c-50` | 50 units left/up of the parent's **center** |
+| `s0.5`, `cs-0.5`, `rs1` | the number is a multiple of the element's **own** size: `cs-0.5` centers it exactly, `rs1` puts it flush against the right/bottom edge |
+| `p0.1`, `rp0.1`, `cp-0.1` | the number is a fraction of the **parent's** size |
 
 ## Sizes (`wide`, `tall`)
 | Value | Meaning |
