@@ -123,8 +123,8 @@ from. It may be rough, so back up your HUD before you use it.
 | ![Settings: TF2 folder, HUD library and launch options](artwork/screenshots/settings.png) | ![External tools: Crowbar, Blender, VTFEdit, 7-Zip, PeaZip, VTFCmd](artwork/screenshots/tools.png) |
 
 <p align="center">
-  <img src="artwork/screenshots/panels.png" alt="Sidebar panels: Elements, Images, Search, Problems and Game" width="100%">
-  <br><sub>Sidebar panels: Elements, Images, Search, Problems and the Game console with test commands</sub>
+  <img src="artwork/screenshots/panels.png" alt="Panels: Elements, Inspector, Images, Search, Problems and Game" width="100%">
+  <br><sub>Panels: Elements, the Inspector, Images, Search, Problems and the Game console with test commands</sub>
 </p>
 
 ## Getting started
