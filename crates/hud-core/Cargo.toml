@@ -17,3 +17,4 @@ dunce = "1"
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.52"
+junction = "1"

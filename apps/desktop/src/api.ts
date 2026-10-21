@@ -17,7 +17,25 @@ export type Settings = {
   version: number; tfDir: string | null; tools: Record<string, string>; recentProjects: string[];
   backups: boolean; platform: 'windows' | 'linux' | 'mac'; ui: Record<string, unknown>;
   editor: AppChoice; imageEditor: AppChoice;
+  hudLibrary: string | null; installMode: InstallMode; launch: LaunchSettings;
 };
+export type InstallMode = 'link' | 'copy';
+export type LaunchSettings = {
+  bits: '64' | '32'; method: 'direct' | 'steam'; width: number | null; height: number | null;
+  itemtest: boolean; rcon: boolean; consoleLog: boolean; reloadOnSave: boolean; extraArgs: string;
+};
+export type Manifest = {
+  name: string; version: string; author: string; description: string; icon: string; banner: string;
+  homepage: string; source: string; license: string; tags: string;
+};
+export type HudDetails = { hasManifest: boolean; manifest: Manifest; iconUrl: string | null; bannerUrl: string | null };
+export type CustomEntry = { name: string; folder: string; path: string; kind: 'link' | 'copy'; target: string | null; isHud: boolean; libraryFolder: string | null };
+export type LibraryHud = { name: string; folder: string; path: string; installs: CustomEntry[]; details: HudDetails };
+export type LibraryState = { library: string | null; huds: LibraryHud[]; custom: CustomEntry[] };
+export type InstallResult = { target: string; mode: InstallMode; files: number; backedUp: string[]; unlinked: string[] };
+export type LaunchInfo = { method: string; program: string; args: string[]; rconPort: number | null; logPath: string | null; size: [number, number] };
+export type GameStatus = { running: boolean | null; rcon: boolean; logPath: string | null };
+export type ImportResult = { image: string; texture: string; material: string | null; width: number; height: number };
 export type AppChoice = { id: string; path: string | null; args: string | null };
 export type EditorInfo = { id: string; name: string; detected: boolean; path: string | null; terminal: boolean; opensAtLine: boolean };
 export type AppCategory = 'text' | 'image';
@@ -47,7 +65,7 @@ export type AnimEvent = { name: string; file: string; editable: boolean; line: n
 export type Animations = { files: string[]; events: AnimEvent[]; problems: { file: string; line: number; message: string }[] };
 export type Problem = { severity: 'error' | 'warning' | 'info'; file: string; offset: number | null; line: number; message: string };
 export type SearchHit = { file: string; line: number; column: number; offset: number; length: number; preview: string };
-export type ExternalTool = { id: string; name: string; path: string | null; available: boolean; detected: boolean; opens: string[] };
+export type ExternalTool = { id: string; name: string; kind: 'gui' | 'cli'; about: string; path: string | null; available: boolean; detected: boolean; opens: string[] };
 export type SaveResult = { saved: string[]; backup: string | null; documents: Doc[] };
 export type BufferState = { path: string; dirty: boolean; changedOnDisk: boolean };
 export type ElementEdit = { element: string[]; property: string; value: string | null; blockId?: string };
@@ -97,7 +115,7 @@ export const api = {
   search: (query: string, regex: boolean, caseSensitive: boolean) => invoke<SearchHit[]>('search', { query, regex, caseSensitive }),
   assets: (includeStock: boolean) => invoke<{ path: string; stock: boolean }[]>('assets_list', { includeStock }),
   localize: (tokens: string[]) => invoke<Record<string, string>>('localize', { tokens }),
-  deploy: (folder: string) => invoke<{ target: string; files: number; previousBackedUpTo: string | null }>('deploy', { folder }),
+  deploy: (folder: string, mode: InstallMode) => invoke<InstallResult>('deploy', { folder, mode }),
   exportZip: (dest: string) => invoke<number>('export_zip', { dest }),
   openPath: (path: string) => invoke<void>('open_path', { path }),
   editorsList: (category: AppCategory) => invoke<EditorInfo[]>('editors_list', { category }),
@@ -107,6 +125,25 @@ export const api = {
   toolsRegister: (id: string, path: string | null) => invoke<void>('tools_register', { id, path }),
   toolsLaunch: (id: string) => invoke<void>('tools_launch', { id }),
   toolsOpenWith: (id: string, path: string) => invoke<void>('tools_open_with', { id, path }),
+  imageImport: (source: string, options: { name: string; compress: boolean; powerOfTwo: boolean; overwrite: boolean }) => invoke<ImportResult>('image_import', { source, options }),
+  imagePngBack: (texture: string, compress: boolean) => invoke<string>('image_png_back', { texture, compress }),
+  libraryGet: () => invoke<LibraryState>('library_get'),
+  librarySet: (path: string | null) => invoke<LibraryState>('library_set', { path }),
+  libraryInstall: (args: { folder?: string; path?: string; name?: string; mode?: InstallMode }) =>
+    invoke<InstallResult>('library_install', { folder: args.folder ?? null, path: args.path ?? null, name: args.name ?? null, mode: args.mode ?? null }),
+  librarySwapPlan: (folder: string) => invoke<CustomEntry[]>('library_swap_plan', { folder }),
+  librarySwap: (folder: string, mode?: InstallMode) => invoke<InstallResult>('library_swap', { folder, mode: mode ?? null }),
+  libraryUninstall: (customFolder: string) => invoke<InstallResult>('library_uninstall', { customFolder }),
+  libraryAdopt: (customFolder: string, mode?: InstallMode) => invoke<LibraryState>('library_adopt', { customFolder, mode: mode ?? null }),
+  libraryAdd: (path: string) => invoke<string>('library_add', { path }),
+  manifestGet: (path?: string) => invoke<HudDetails>('manifest_get', { path: path ?? null }),
+  manifestSave: (manifest: Manifest, path?: string) => invoke<HudDetails>('manifest_save', { path: path ?? null, manifest }),
+  manifestSetImage: (slot: 'icon' | 'banner', image: string, path?: string) => invoke<HudDetails>('manifest_set_image', { path: path ?? null, slot, image }),
+  displaySize: () => invoke<[number, number]>('display_size'),
+  gameLaunch: (bits?: '64' | '32', itemtest?: boolean) => invoke<LaunchInfo>('game_launch', { bits: bits ?? null, itemtest: itemtest ?? null }),
+  gameRcon: (command: string) => invoke<string>('game_rcon', { command }),
+  gameStatus: () => invoke<GameStatus>('game_status'),
+  gameDetach: () => invoke<void>('game_detach'),
 };
 
 export function errorText(e: unknown): string {

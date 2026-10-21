@@ -1,11 +1,12 @@
 // Global editor state with a tiny subscribe/notify store (no external state library needed).
 import { useSyncExternalStore } from 'react';
-import { api, errorText, type Animations, type AppInfo, type Doc, type ElementEdit, type FileEntry, type Problem, type ProjectInfo, type Resolved, type Scheme } from './api.ts';
+import { api, errorText, inTauri, type Animations, type AppInfo, type GameStatus, type Settings, type Doc, type ElementEdit, type FileEntry, type Problem, type ProjectInfo, type Resolved, type Scheme } from './api.ts';
 import { buildComposite, fileElements, findEl, editTarget, originLabel, walk, type El, type Home } from './vgui/model.ts';
 import { SchemeIndex, registerFonts } from './vgui/scheme.ts';
 import { ASPECTS } from './vgui/layout.ts';
 
-export type Sidebar = 'files' | 'elements' | 'search' | 'problems' | 'assets';
+export type Sidebar = 'files' | 'elements' | 'search' | 'problems' | 'assets' | 'game';
+export type GameLine = { id: number; kind: 'log' | 'cmd' | 'reply' | 'error' | 'info'; text: string };
 export type View = 'design' | 'source' | 'scheme' | 'animations';
 export type Toast = { id: number; kind: 'ok' | 'error' | 'info'; text: string };
 export type Playback = { event: string; t: number; playing: boolean };
@@ -49,7 +50,10 @@ export type State = {
   history: string[];
   future: string[];
   reveal: { file: string; offset?: number; line?: number; nonce: number } | null;
-  dialog: null | { kind: 'settings' | 'new-hud' | 'deploy' | 'tools' | 'quick-open' | 'add-element' | 'about' };
+  dialog: null | { kind: 'settings' | 'new-hud' | 'deploy' | 'tools' | 'quick-open' | 'add-element' | 'about' | 'library' | 'hud-details'; path?: string };
+  /** TF2 started from HUD Studio: console.log lines and remote console traffic */
+  gameLog: GameLine[];
+  game: GameStatus | null;
   ask: null | { message: string; ok: string; resolve: (yes: boolean) => void };
   menu: null | { x: number; y: number; items: { label: string; run: () => void; disabled?: boolean }[] };
 };
@@ -67,7 +71,7 @@ let state: State = {
   scheme: null, schemeIndex: new SchemeIndex(null), fontsVersion: 0, elementFiles: {}, model: [], modelLabel: '', modelError: null,
   selection: [], hidden: new Set(), resolution: saved.resolution ?? { w: ASPECTS[0].w, h: ASPECTS[0].h }, zoom: 'fit',
   showHidden: saved.showHidden ?? false, showGrid: saved.showGrid ?? false, snap: saved.snap ?? 1, composite: saved.composite ?? true, scenario: (CLASSES as readonly string[]).includes(saved.scenario) || saved.scenario === 'all' ? saved.scenario : 'soldier',
-  animations: null, playback: null, problems: [], localized: {}, toasts: [], busy: null, history: [], future: [], reveal: null, dialog: null, ask: null, menu: null,
+  animations: null, playback: null, problems: [], localized: {}, toasts: [], busy: null, history: [], future: [], reveal: null, dialog: null, ask: null, menu: null, gameLog: [], game: null,
 };
 
 const listeners = new Set<() => void>();
@@ -125,7 +129,50 @@ export const isAnimFile = (p: string) => /(^|\/)hudanimations[^/]*\.txt$/i.test(
 export const isSchemeFile = (p: string) => /clientscheme|(^|\/)resource\/scheme\//i.test(p);
 export const isText = (p: string) => /\.(res|vdf|txt|cfg|rc|vmt|md)$/i.test(p);
 
+let gameLineId = 0;
+const GAME_LOG_MAX = 4000;
+export function addGameLines(kind: GameLine['kind'], lines: string[]) {
+  if (!lines.length) return;
+  set((s) => {
+    const next = [...s.gameLog, ...lines.map((text) => ({ id: ++gameLineId, kind, text }))];
+    return { gameLog: next.length > GAME_LOG_MAX ? next.slice(next.length - GAME_LOG_MAX) : next };
+  });
+}
+
+export async function refreshGame() {
+  const game = await api.gameStatus().catch(() => null);
+  set({ game });
+  return game;
+}
+
+/** Runs a console command in TF2 through the remote console and logs it. */
+export async function gameCommand(command: string, quiet = false): Promise<string | undefined> {
+  if (!quiet) addGameLines('cmd', [`] ${command}`]);
+  try {
+    const out = await api.gameRcon(command);
+    if (!quiet && out.trim()) addGameLines('reply', out.replace(/\n$/, '').split('\n'));
+    return out;
+  } catch (e) {
+    if (!quiet) addGameLines('error', [errorText(e)]);
+    else throw e;
+    return undefined;
+  }
+}
+
+export async function updateSettings(patch: Partial<Settings>) {
+  const app = state.app;
+  if (!app) return;
+  const settings = await guard(null, () => api.settingsSave({ ...app.settings, ...patch }));
+  if (settings) set({ app: { ...app, settings } });
+  return settings;
+}
+
 export async function init() {
+  if (inTauri) {
+    const { listen } = await import('@tauri-apps/api/event');
+    void listen<string[]>('game-log', (e) => addGameLines('log', e.payload));
+    void listen<string>('game-state', () => void refreshGame());
+  }
   const app = await guard(null, () => api.appInit());
   if (app) set({ app });
   if (app?.launchPath) await openProject(app.launchPath);
@@ -272,6 +319,18 @@ export async function saveAll() {
   });
   toast(r.saved.length ? `Saved ${r.saved.length} file${r.saved.length > 1 ? 's' : ''}${r.backup ? ' · previous versions backed up' : ''}` : 'Nothing to save', 'ok');
   void refreshProblems();
+  if (r.saved.length) void reloadHudInGame();
+}
+
+/** After a save: tell a running TF2 (started from HUD Studio with the remote console) to reload the HUD. */
+async function reloadHudInGame() {
+  if (!state.app?.settings.launch?.reloadOnSave || !state.game?.rcon) return;
+  try {
+    await gameCommand('hud_reloadscheme', true);
+    addGameLines('info', ['HUD reloaded in TF2 after saving']);
+  } catch {
+    /* game closed or still loading */
+  }
 }
 
 export async function saveActive() {

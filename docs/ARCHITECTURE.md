@@ -43,7 +43,9 @@ add a key or block, remove a key, rename a block. A file you only change one val
 | `images`, `vtf` | Turns VGUI image names into `.vmt` → `.vtf` files and decodes them to RGBA (DXT1/3/5, BGRA, …). |
 | `fontmeta` | Reads TTF/OTF names and vertical metrics, so text sits where the game puts it. |
 | `lint` | The Problems list. It only covers files TF2 loads, plus anything they reach through `#base`. |
-| `project` | Scanning, search, new-HUD scaffolding, installing to `tf/custom`, zip export and Steam library discovery. |
+| `project` | Scanning, search, new-HUD scaffolding, zip export and Steam library discovery. |
+| `library` | The HUD library: listing it and `tf/custom`, installing as a link (junction/symlink) or copy, swapping, moving HUDs in. Removing an install never deletes a real folder. |
+| `manifest` | `TFHUD.manifest`: reading, lossless editing, icon/banner images. |
 
 ## The Tauri backend
 
@@ -52,7 +54,10 @@ add a key or block, remove a key, rename a block. A file you only change one val
 - **`settings.rs`:** versioned JSON settings in the OS config folder: TF2 path, platform, editors, tools and UI options.
 - **`editors.rs`:** catalogs of text and image editors for each OS. It handles detection (PATH, install folders,
   `.app` bundles) and launching, with line-number argument templates and terminal editors.
-- **`tools.rs`:** optional asset tools (Crowbar, Blender).
+- **`tools.rs`:** asset tools: Crowbar, Blender, VTFEdit, VTFEdit Reloaded, plus the VTFCmd and ImageMagick converters.
+- **`imagetools.rs`:** image import (PNG → VTF built in, other formats via ImageMagick, DXT5 via VTFCmd) and writing PNG copies back.
+- **`hudlib.rs`:** HUD library and manifest commands.
+- **`game.rs`:** launching TF2 (64/32-bit, itemtest), the Source RCON client for `-usercon`, and following `console.log`.
 
 ## The frontend
 

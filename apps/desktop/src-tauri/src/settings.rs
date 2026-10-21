@@ -24,6 +24,50 @@ pub struct Settings {
     pub platform: hud_syntax::Platform,
     /// Free-form UI preferences owned by the frontend (layout, resolution, toggles).
     pub ui: serde_json::Value,
+    /// Folder the user keeps their HUDs in.
+    pub hud_library: Option<String>,
+    /// How HUDs are installed into tf/custom: a link (junction/symlink) or a copy.
+    pub install_mode: hud_core::library::InstallMode,
+    /// Launching TF2 to test a HUD.
+    pub launch: LaunchSettings,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct LaunchSettings {
+    /// "64" (standard) or "32" (legacy, Windows only).
+    pub bits: String,
+    /// "direct" starts the game executable (lets you pick 32/64-bit); "steam" asks Steam to start it.
+    pub method: String,
+    /// Window size for itemtest; detected from the display on first launch when unset.
+    pub width: Option<u32>,
+    pub height: Option<u32>,
+    /// Load straight into itemtest (with sv_lan 1 and a borderless window).
+    pub itemtest: bool,
+    /// Open TF2's remote console (-usercon) on localhost with a password generated per launch.
+    pub rcon: bool,
+    /// Have the game write console.log (-condebug) and show it in HUD Studio.
+    pub console_log: bool,
+    /// Run hud_reloadscheme in the game after saving.
+    pub reload_on_save: bool,
+    /// Extra launch options, e.g. `-novid +exec myconfig`.
+    pub extra_args: String,
+}
+
+impl Default for LaunchSettings {
+    fn default() -> Self {
+        LaunchSettings {
+            bits: "64".into(),
+            method: if cfg!(windows) { "direct".into() } else { "steam".into() },
+            width: None,
+            height: None,
+            itemtest: true,
+            rcon: true,
+            console_log: true,
+            reload_on_save: true,
+            extra_args: String::new(),
+        }
+    }
 }
 
 impl Default for Settings {
@@ -38,6 +82,9 @@ impl Default for Settings {
             image_editor: Default::default(),
             platform: hud_syntax::Platform::Windows,
             ui: serde_json::Value::Object(Default::default()),
+            hud_library: None,
+            install_mode: Default::default(),
+            launch: Default::default(),
         }
     }
 }

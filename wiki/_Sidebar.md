@@ -3,6 +3,8 @@
 **Start**
 - [[Getting Started]]
 - [[Installing and Sharing]]
+- [[HUD Library]]
+- [[Testing in TF2]]
 
 **Guides**
 - [[Designer]]
@@ -11,6 +13,7 @@
 - [[Problems]]
 - [[Editors]]
 - [[Shortcuts]]
+- [[TFHUD Manifest]]
 
 **Reference**
 - [[How the Preview Works]]

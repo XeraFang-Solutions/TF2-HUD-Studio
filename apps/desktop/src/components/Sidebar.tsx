@@ -4,6 +4,7 @@ import { api, type SearchHit } from '../api.ts';
 import { guard, openFile, refreshProblems, refreshSemantics, set, toast, useStore } from '../store.ts';
 import { walk, type El } from '../vgui/model.ts';
 import { Assets } from './Assets.tsx';
+import { GamePanel } from './Game.tsx';
 import { fileMenu, openInTextEditor, showMenu, useAppName } from './External.tsx';
 
 // ── files ──────────────────────────────────────────────────────────────────
@@ -268,6 +269,7 @@ export function Sidebar() {
       {which === 'search' && <SearchPanel />}
       {which === 'problems' && <Problems />}
       {which === 'assets' && <Assets />}
+      {which === 'game' && <GamePanel />}
     </aside>
   );
 }

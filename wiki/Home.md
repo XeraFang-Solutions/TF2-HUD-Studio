@@ -8,6 +8,8 @@ you see is where things end up in game.
 ## Start here
 - **[[Getting Started]]**: download, first launch, opening or creating a HUD.
 - **[[Installing and Sharing]]**: put your HUD in `tf/custom`, export a zip.
+- **[[HUD Library]]**: keep your HUDs in one folder and swap between them; install as a link to save space.
+- **[[Testing in TF2]]**: launch TF2 into itemtest, see its console, reload the HUD on save, and use test commands (bots, crits, Über, Mannpower…).
 
 ## Guides
 - **[[Designer]]**: the canvas, selecting, dragging, snapping, the Inspector and the Elements tree.
@@ -16,6 +18,7 @@ you see is where things end up in game.
 - **[[Problems]]**: what each warning means and how to fix it.
 - **[[Editors]]**: the built-in source editor, and your own text and image editors.
 - **[[Shortcuts]]**: every keyboard and mouse shortcut.
+- **[[TFHUD Manifest]]**: the `TFHUD.manifest` file: name, version, icon, links.
 
 ## Reference
 - **[[How the Preview Works]]**: VGUI units, positions, pinning, `#base` and conditions.

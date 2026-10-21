@@ -115,7 +115,7 @@ fn write_new(path: &Path, content: &[u8]) -> Result<(), String> {
     fs::write(path, content).map_err(|e| format!("{}: {e}", path.display()))
 }
 
-fn safe_folder_name(name: &str) -> String {
+pub fn safe_folder_name(name: &str) -> String {
     let s: String = name.chars().map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '_' { c.to_ascii_lowercase() } else { '-' }).collect();
     let s = s.trim_matches('-').to_string();
     if s.is_empty() {
@@ -173,7 +173,7 @@ pub fn scaffold(parent: &Path, name: &str, template: &str, game: Option<&GameAss
     Ok(root)
 }
 
-fn copy_dir(src: &Path, dst: &Path) -> Result<usize, String> {
+pub fn copy_dir(src: &Path, dst: &Path) -> Result<usize, String> {
     let mut n = 0;
     fs::create_dir_all(dst).map_err(|e| e.to_string())?;
     for entry in fs::read_dir(src).map_err(|e| e.to_string())?.flatten() {
@@ -256,7 +256,7 @@ pub struct GameInstall {
     pub huds: Vec<CustomHud>,
 }
 
-fn steam_roots() -> Vec<PathBuf> {
+pub fn steam_roots() -> Vec<PathBuf> {
     let mut roots = Vec::new();
     #[cfg(windows)]
     {

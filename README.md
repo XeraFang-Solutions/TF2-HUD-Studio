@@ -33,6 +33,8 @@ It is a portable app for Windows, Linux and macOS: download one file and run it,
 - [Using the studio](#using-the-studio)
 - [How accurate is the preview?](#how-accurate-is-the-preview)
 - [Keyboard shortcuts](#keyboard-shortcuts)
+- [HUD library and TFHUD.manifest](#hud-library-and-tfhudmanifest)
+- [Testing in TF2](#testing-in-tf2)
 - [Text and image editors](#text-and-image-editors)
 - [Where things are stored](#where-things-are-stored)
 - [Building from source](#building-from-source)
@@ -89,13 +91,21 @@ from. It may be rough, so back up your HUD before you use it.
 - Add, duplicate, rename and delete elements, starting from templates for the common VGUI controls.
 - Scheme editor for colors, fonts and borders across all of a HUD's scheme files.
 - Source editor with KeyValues highlighting, plus a one-click "Open in…" for **any text editor you like**.
-- Image browser with previews of HUD and stock materials. **Edit images in your own image editor**; editors that can't read VTF get a PNG copy.
+- Image browser with previews of HUD and stock materials. **Edit images in your own image editor**; editors that can't read VTF get a PNG copy, which one click turns back into the VTF.
+- **Import images**: PNG becomes a lossless VTF and `.vmt` with no extra tools. TGA, JPG, PSD and WebP work through ImageMagick, and compressed DXT5 through VTFCmd.
 - Undo and redo across files. Save all, with automatic backups, external-change detection and UTF-16 files.
 
 **Working on a HUD**
 - The Problems panel lists syntax errors, broken `#base` chains, undefined colors and fonts, missing images and animation script errors. Click one to jump to it.
 - Project-wide search, quick open (<kbd>Ctrl</kbd>+<kbd>P</kbd>) and an Elements tree.
 - A new-HUD wizard, "customize a TF2 file" for overriding stock files, one-click install to `tf/custom`, and zip export.
+- **HUD library**: keep your HUDs in one folder, see them with their icons, and swap which one TF2 loads in one click. A HUD can be installed as a **link** (a junction on Windows) instead of a copy, so nothing is duplicated and every save is live in game.
+- **`TFHUD.manifest`**: each HUD's name, version, author, description, icon, banner and links, shown in the library.
+
+**Testing in TF2**
+- **Play** starts TF2: 64-bit (standard) or 32-bit (legacy) on Windows. It can load straight into `itemtest` as a local game (`sv_lan 1`, borderless window at your display size, quick-start switches).
+- A **remote console** (`-usercon` on 127.0.0.1, with a new password every launch) and the game's **console log** (`-condebug`) appear right in HUD Studio.
+- **Reload HUD** after every save, plus one-click **test commands**: change class or map, add bots, give yourself crits, Über or any Mannpower power-up, force a win, turn on tournament mode, show the VGUI panel tree, and more.
 - Finds your TF2 install through Steam automatically.
 
 | Scheme editor | Animation timeline |
@@ -156,6 +166,66 @@ Those reports are the fastest way to make the preview better.
 
 On macOS, use <kbd>Cmd</kbd> instead of <kbd>Ctrl</kbd>.
 
+## HUD library and TFHUD.manifest
+
+Open **HUD library** (the books icon, bottom left) and choose a folder outside `tf/custom`, for example `Documents/TF2 HUDs`.
+Every HUD in that folder appears as a card.
+
+- **Use this HUD** installs it and takes the other HUDs out of `tf/custom`. Configs, hitsounds and other non-HUD content are left alone.
+- **Install as link** (the default) makes `tf/custom/<name>` a junction (Windows) or symlink (Linux and macOS) to the library folder. Nothing is copied, and HUD Studio's saves are what TF2 loads. **Install as copy** makes a snapshot instead.
+- Removing an install never deletes a HUD: links are just removed, and real folders are moved to HUD Studio's backups.
+- HUDs already in `tf/custom` can be **moved to the library** (and linked back) in one click, and downloaded HUDs can be **added** from any folder.
+
+Each HUD can carry a `TFHUD.manifest` at its root: a KeyValues file like `info.vdf` that TF2 ignores.
+
+```
+"TFHUD"
+{
+	"manifest_version"	"1"
+	"name"			"My HUD"
+	"version"		"1.2.0"
+	"author"		"me"
+	"description"	"A short description."
+	"icon"			"tfhud/icon.png"
+	"banner"		"tfhud/banner.png"
+	"homepage"		"https://…"
+	"source"		"https://github.com/…"
+	"license"		"…"
+	"tags"			"minimal, competitive"
+}
+```
+
+Edit it with **HUD details** (on a library card, or in the Install dialog). Images you pick are copied into the HUD's
+`tfhud/` folder. Saving edits the file in place, so your own comments and extra keys survive. New HUDs get a manifest automatically.
+
+## Testing in TF2
+
+The **Play** button (top right) starts TF2. Its menu chooses the 64-bit or 32-bit (legacy) build on Windows. On Linux, TF2 is 64-bit
+only and starts through Steam. TF2 no longer runs on macOS. Steam needs to be running.
+
+With **Start in itemtest** on, TF2 is started with:
+
+```
+-window -noborder -w <width> -h <height> -noipx -nosteamcontroller -softparticlesdefaultoff -nohltv -nojoy -enablefakeip
++sv_lan 1 +map itemtest
+```
+
+The window size is detected from your display the first time you launch; change it in **Settings → Launching TF2**.
+
+With **Remote console** on, HUD Studio adds `-usercon -port <free port> +ip 127.0.0.1 +rcon_password <random> +net_start`. The password is new
+for every launch and the console only listens on your own machine. The **Game** panel (the gamepad icon) shows the game's console
+(`-condebug`), takes console commands, reloads the HUD after each save, and has buttons for:
+
+- the **HUD**: reload it, hide it, the VGUI panel tree, panel outlines, the FPS counter, damage numbers and minimal HUD;
+- **you**: class, team, respawn, damage, overheal, god mode, third person and spectating;
+- **conditions** such as crits, Über, Buff Banner, Jarate, Mad Milk, bleeding and cloak, and every **Mannpower power-up**;
+- **bots**: add puppet bots on either team, have them copy you or fire, and kick them;
+- the **round**: skip waiting for players, restart, force a win and tournament mode;
+- **maps**: itemtest, 2Fort, Badlands, Harvest, Badwater, Hightower, Coal Town (MvM), Foundry (Mannpower) and Walkway.
+
+Buttons marked with a red dot turn on `sv_cheats`, so they only work in a local game such as itemtest. Your own launch options go in
+**Settings → Launching TF2 → Extra launch options**.
+
 ## Text and image editors
 
 The built-in source editor is always there, but you can also send files to your own editors. Choose them under
@@ -172,10 +242,17 @@ The built-in source editor is always there, but you can also send files to your 
   e.g. `-g "{file}:{line}"`.
 
 Text editors that support it open at the right line. Terminal editors such as Vim or Helix open in a new terminal window.
-For a `.vtf`, **Edit a PNG copy** decodes it to a PNG that any image editor can open. Convert it back to VTF
-(with VTFEdit, for example) when you're done.
+For a `.vtf`, **Edit a PNG copy** decodes it to a PNG that any image editor can open. When you're done,
+**Save PNG copy into HUD** writes it back as a VTF. For a TF2 texture, it's saved as an override in your HUD.
 
-The **Tools** panel (the wrench icon, bottom left) remembers where Crowbar and Blender are installed, for model work.
+**Images → Import** turns a picture into `materials/vgui/<name>.vtf` plus a matching `.vmt`, ready to use as an `image`:
+
+- PNG works out of the box (lossless BGRA8888, no mipmaps).
+- TGA, JPG, PSD, WebP and other formats need [ImageMagick](https://imagemagick.org).
+- "Compress (DXT5)" needs VTFCmd, which comes with VTFEdit and VTFEdit Reloaded.
+
+The **Tools** panel (the wrench icon, bottom left) finds and launches **Crowbar**, **Blender**, **VTFEdit** and **VTFEdit Reloaded**. It
+also locates the command-line converters **VTFCmd** and **ImageMagick**, or lets you point it at them.
 
 ## Where things are stored
 

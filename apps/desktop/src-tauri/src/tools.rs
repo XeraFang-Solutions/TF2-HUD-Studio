@@ -1,5 +1,10 @@
-//! Optional external asset tools. Only known tool ids can be registered; registrations persist in settings.
+//! External asset tools. Only known tool ids can be registered; registrations persist in settings.
 //! Launches never go through a shell and only ever pass a single project file path as the argument.
+//!
+//! * GUI tools: Crowbar (models), Blender, VTFEdit and VTFEdit Reloaded (textures).
+//! * Command-line converters used by image import: VTFCmd (VTFLib's CLI, ships with VTFEdit/VTFEdit Reloaded) for
+//!   compressed (DXT) VTFs, and ImageMagick for turning TGA/JPG/PSD/WebP… into PNG first.
+//!   PNG → BGRA8888 VTF needs neither: HUD Studio does that itself.
 use crate::session::SessionState;
 use crate::StoreState;
 use serde::Serialize;
@@ -12,6 +17,9 @@ use tauri::State;
 pub struct ExternalTool {
     id: String,
     name: String,
+    /// "gui" or "cli".
+    kind: String,
+    about: String,
     path: Option<String>,
     available: bool,
     detected: bool,
@@ -19,18 +27,112 @@ pub struct ExternalTool {
     opens: Vec<String>,
 }
 
-// Text and image editors live in editors.rs (chosen from a dropdown in Settings); these are the other asset tools.
-const TOOL_CATALOG: [(&str, &str, &[&str], &[&str]); 2] =
-    [("crowbar", "Crowbar", &["Crowbar.exe", "crowbar"], &["mdl", "qc"]), ("blender", "Blender", &["blender.exe", "blender"], &["blend", "smd", "dmx"])];
-
-fn tool_def(id: &str) -> Result<(&'static str, &'static [&'static str], &'static [&'static str]), String> {
-    TOOL_CATALOG.iter().find(|(key, ..)| *key == id).map(|(_, name, names, opens)| (*name, *names, *opens)).ok_or_else(|| "Unknown tool id".into())
+struct ToolDef {
+    id: &'static str,
+    name: &'static str,
+    kind: &'static str,
+    about: &'static str,
+    exe: &'static [&'static str],
+    #[cfg_attr(not(windows), allow(dead_code))]
+    /// Install folders under Program Files / LocalAppData\Programs (Windows); `*` matches one path segment.
+    dirs: &'static [&'static str],
+    opens: &'static [&'static str],
 }
 
-fn search_tool(names: &[&str]) -> Option<PathBuf> {
+const TEXTURE_DIRS: &[&str] = &["VTFEdit", "Nem's Tools\\VTFEdit", "VTFEdit Reloaded", "VTFEdit-Reloaded", "VTFEdit Reloaded\\*", "VTFLib", "VTFLib\\*"];
+
+const TOOLS: &[ToolDef] = &[
+    ToolDef {
+        id: "crowbar",
+        name: "Crowbar",
+        kind: "gui",
+        about: "Decompile and compile Source models",
+        exe: &["Crowbar.exe", "crowbar"],
+        dirs: &["Crowbar"],
+        opens: &["mdl", "qc"],
+    },
+    ToolDef {
+        id: "blender",
+        name: "Blender",
+        kind: "gui",
+        about: "3D modelling (with the Source Tools add-on)",
+        exe: &["blender.exe", "blender"],
+        dirs: &["Blender Foundation\\Blender", "Blender Foundation\\*"],
+        opens: &["blend", "smd", "dmx"],
+    },
+    ToolDef {
+        id: "vtfedit",
+        name: "VTFEdit",
+        kind: "gui",
+        about: "View, edit and convert VTF textures",
+        exe: &["VTFEdit.exe"],
+        dirs: &["VTFEdit", "Nem's Tools\\VTFEdit"],
+        opens: &["vtf", "vmt"],
+    },
+    ToolDef {
+        id: "vtfedit-reloaded",
+        name: "VTFEdit Reloaded",
+        kind: "gui",
+        about: "The maintained fork of VTFEdit",
+        exe: &["VTFEdit.exe", "VTFEditReloaded.exe"],
+        dirs: &["VTFEdit Reloaded", "VTFEdit-Reloaded", "VTFEdit Reloaded\\*"],
+        opens: &["vtf", "vmt"],
+    },
+    ToolDef {
+        id: "vtfcmd",
+        name: "VTFCmd",
+        kind: "cli",
+        about: "Command-line VTF converter (for compressed DXT5 imports)",
+        exe: &["VTFCmd.exe", "vtfcmd", "VTFCmd"],
+        dirs: TEXTURE_DIRS,
+        opens: &[],
+    },
+    ToolDef {
+        id: "magick",
+        name: "ImageMagick",
+        kind: "cli",
+        about: "Converts TGA, JPG, PSD, WebP and more to PNG before import",
+        exe: &["magick.exe", "magick"],
+        dirs: &["ImageMagick-*"],
+        opens: &[],
+    },
+];
+
+fn tool_def(id: &str) -> Result<&'static ToolDef, String> {
+    TOOLS.iter().find(|t| t.id == id).ok_or_else(|| "Unknown tool id".into())
+}
+
+#[cfg(windows)]
+fn expand(base: &Path, pattern: &str) -> Vec<PathBuf> {
+    let mut found = vec![base.to_path_buf()];
+    for seg in pattern.split('\\') {
+        let mut next = Vec::new();
+        for f in &found {
+            if let Some(prefix) = seg.strip_suffix('*') {
+                if let Ok(entries) = std::fs::read_dir(f) {
+                    let mut v: Vec<PathBuf> = entries
+                        .flatten()
+                        .filter(|e| e.file_name().to_string_lossy().to_ascii_lowercase().starts_with(&prefix.to_ascii_lowercase()))
+                        .map(|e| e.path())
+                        .filter(|p| p.is_dir())
+                        .collect();
+                    v.sort();
+                    v.reverse(); // newest version first
+                    next.extend(v);
+                }
+            } else {
+                next.push(f.join(seg));
+            }
+        }
+        found = next;
+    }
+    found
+}
+
+fn search_tool(def: &ToolDef) -> Option<PathBuf> {
     if let Some(paths) = std::env::var_os("PATH") {
         for folder in std::env::split_paths(&paths) {
-            for name in names {
+            for name in def.exe {
                 let path = folder.join(name);
                 if path.is_file() {
                     return dunce::canonicalize(&path).ok();
@@ -40,24 +142,17 @@ fn search_tool(names: &[&str]) -> Option<PathBuf> {
     }
     #[cfg(windows)]
     {
-        let mut roots: Vec<PathBuf> = ["ProgramFiles", "ProgramFiles(x86)"].iter().filter_map(|e| std::env::var_os(e)).map(PathBuf::from).collect();
+        let mut roots: Vec<PathBuf> =
+            ["ProgramFiles", "ProgramFiles(x86)", "ProgramW6432"].iter().filter_map(|e| std::env::var_os(e)).map(PathBuf::from).collect();
         if let Some(local) = std::env::var_os("LOCALAPPDATA") {
-            roots.push(PathBuf::from(local).join("Programs"));
+            roots.push(PathBuf::from(&local).join("Programs"));
+            roots.push(PathBuf::from(local));
         }
-        for dir in roots {
-            for sub in ["Crowbar", "Blender Foundation\\Blender"] {
-                for name in names {
-                    let path = dir.join(sub).join(name);
-                    if path.is_file() {
-                        return dunce::canonicalize(&path).ok();
-                    }
-                }
-            }
-            // Blender installs into versioned folders: Blender Foundation\Blender 4.2\blender.exe
-            if let Ok(entries) = std::fs::read_dir(dir.join("Blender Foundation")) {
-                for e in entries.flatten() {
-                    for name in names {
-                        let p = e.path().join(name);
+        for root in roots {
+            for d in def.dirs {
+                for dir in expand(&root, d) {
+                    for name in def.exe {
+                        let p = dir.join(name);
                         if p.is_file() {
                             return dunce::canonicalize(&p).ok();
                         }
@@ -66,32 +161,54 @@ fn search_tool(names: &[&str]) -> Option<PathBuf> {
             }
         }
     }
+    #[cfg(not(windows))]
+    {
+        // ImageMagick 6 ships `convert` instead of `magick` (only safe to use outside Windows, where convert.exe is a disk tool)
+        if def.id == "magick" {
+            if let Some(paths) = std::env::var_os("PATH") {
+                for folder in std::env::split_paths(&paths) {
+                    let p = folder.join("convert");
+                    if p.is_file() {
+                        return Some(p);
+                    }
+                }
+            }
+        }
+    }
     None
 }
 
+/// The registered or detected executable for a tool id.
+pub fn tool_path(state: &State<'_, SessionState>, id: &str) -> Option<PathBuf> {
+    let def = tool_def(id).ok()?;
+    let registered = state.lock().ok()?.tools.get(id).filter(|p| p.is_file()).cloned();
+    registered.or_else(|| search_tool(def))
+}
+
 fn resolve_tool(state: &State<'_, SessionState>, id: &str) -> Result<PathBuf, String> {
-    let (_, names, _) = tool_def(id)?;
-    let s = state.lock().map_err(|_| "State poisoned")?;
-    s.tools.get(id).filter(|p| p.is_file()).cloned().or_else(|| search_tool(names)).ok_or_else(|| "Tool not registered or detected".into())
+    tool_def(id)?;
+    tool_path(state, id).ok_or_else(|| "Tool not registered or detected".into())
 }
 
 #[tauri::command]
 pub async fn tools_list(state: State<'_, SessionState>) -> Result<Vec<ExternalTool>, String> {
     let registered: Vec<(String, PathBuf)> = state.lock().map_err(|_| "State poisoned")?.tools.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
-    Ok(TOOL_CATALOG
+    Ok(TOOLS
         .iter()
-        .map(|(id, name, names, opens)| {
-            let reg = registered.iter().find(|(k, _)| k == id).map(|(_, p)| p.clone()).filter(|p| p.is_file());
-            let detected = if reg.is_none() { search_tool(names) } else { None };
+        .map(|def| {
+            let reg = registered.iter().find(|(k, _)| k == def.id).map(|(_, p)| p.clone()).filter(|p| p.is_file());
+            let detected = if reg.is_none() { search_tool(def) } else { None };
             let is_detected = reg.is_none() && detected.is_some();
             let path = reg.or(detected);
             ExternalTool {
-                id: id.to_string(),
-                name: name.to_string(),
+                id: def.id.to_string(),
+                name: def.name.to_string(),
+                kind: def.kind.to_string(),
+                about: def.about.to_string(),
                 available: path.is_some(),
                 detected: is_detected,
                 path: path.map(|p| p.to_string_lossy().to_string()),
-                opens: opens.iter().map(|s| s.to_string()).collect(),
+                opens: def.opens.iter().map(|s| s.to_string()).collect(),
             }
         })
         .collect())
@@ -121,6 +238,10 @@ pub fn tools_register(id: String, path: Option<String>, state: State<'_, Session
 
 #[tauri::command]
 pub fn tools_launch(id: String, state: State<'_, SessionState>) -> Result<(), String> {
+    let def = tool_def(&id)?;
+    if def.kind == "cli" {
+        return Err(format!("{} is a command-line tool; HUD Studio uses it when importing images.", def.name));
+    }
     let exe = resolve_tool(&state, &id)?;
     Command::new(exe).spawn().map_err(|e| format!("Could not launch tool: {e}"))?;
     Ok(())

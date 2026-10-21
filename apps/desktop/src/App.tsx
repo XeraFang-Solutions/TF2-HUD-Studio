@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { AlertTriangle, Code2, ExternalLink, Eye, Files, FolderOpen, Grid3x3, ImageIcon, Layers, LayoutPanelTop, Magnet, MonitorPlay, Plus, Redo2, Save, Search, Settings2, Undo2, Upload, Wrench, X } from 'lucide-react';
+import { AlertTriangle, Code2, ExternalLink, Eye, Files, FolderOpen, Gamepad2, Grid3x3, ImageIcon, Layers, LayoutPanelTop, Library, Magnet, MonitorPlay, Plus, Redo2, Save, Search, Settings2, Undo2, Upload, Wrench, X } from 'lucide-react';
 import { api, inTauri } from './api.ts';
 import { CLASSES, type Scenario, closeTab, getState, init, isAnimFile, isRes, isSchemeFile, redo, refreshFiles, refreshSemantics, rebuildModel, saveAll, set, toast, undo, useStore, type Sidebar as SidebarKind, type View } from './store.ts';
 import { Canvas } from './components/Canvas.tsx';
@@ -13,6 +13,7 @@ import { ContextMenu, fileMenu, openInTextEditor, showMenu, useAppName } from '.
 import { cursorLines } from './components/CodeEditor.tsx';
 import { ASPECTS } from './vgui/layout.ts';
 import { Select } from './components/Select.tsx';
+import { PlayButton } from './components/Game.tsx';
 
 function ActivityBar() {
   const sidebar = useStore((s) => s.sidebar);
@@ -30,7 +31,9 @@ function ActivityBar() {
       {item('search', <Search size={19} />, 'Search (Ctrl+Shift+F)')}
       {item('problems', <AlertTriangle size={19} />, 'Problems', problems)}
       {item('assets', <ImageIcon size={19} />, 'Images')}
+      {item('game', <Gamepad2 size={19} />, 'Game console and test commands')}
       <span className="spacer" />
+      <button title="HUD library" onClick={() => set({ dialog: { kind: 'library' } })}><Library size={18} /></button>
       <button title="External tools" onClick={() => set({ dialog: { kind: 'tools' } })}><Wrench size={18} /></button>
       <button title="Settings" onClick={() => set({ dialog: { kind: 'settings' } })}><Settings2 size={18} /></button>
     </nav>
@@ -84,10 +87,11 @@ function Toolbar() {
           )}
           <span className="spacer" />
           {busy && <span className="busy">{busy}</span>}
+          <PlayButton />
           <button className="tb accent" onClick={() => set({ dialog: { kind: 'deploy' } })} title="Install into TF2 or export a zip"><Upload size={15} /><span>Install</span></button>
         </>
       )}
-      {!project && <><span className="spacer" /><button className="tb" onClick={() => set({ dialog: { kind: 'settings' } })} title="Settings"><Settings2 size={15} /><span>Settings</span></button></>}
+      {!project && <><span className="spacer" /><PlayButton /><button className="tb" onClick={() => set({ dialog: { kind: 'library' } })} title="HUD library"><Library size={15} /><span>Library</span></button><button className="tb" onClick={() => set({ dialog: { kind: 'settings' } })} title="Settings"><Settings2 size={15} /><span>Settings</span></button></>}
     </header>
   );
 }

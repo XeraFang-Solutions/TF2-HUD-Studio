@@ -1,4 +1,7 @@
 mod editors;
+mod game;
+mod hudlib;
+mod imagetools;
 mod session;
 mod settings;
 mod tools;
@@ -417,7 +420,7 @@ fn utc_stamp() -> String {
     format!("{y:04}{m:02}{d:02}-{:02}{:02}{:02}", rem / 3600, rem % 3600 / 60, rem % 60)
 }
 
-fn backup_root(app: &tauri::AppHandle) -> PathBuf {
+pub(crate) fn backup_root(app: &tauri::AppHandle) -> PathBuf {
     app.path().app_data_dir().unwrap_or_else(|_| std::env::temp_dir().join("tf2-hud-studio")).join("backups")
 }
 
@@ -711,12 +714,17 @@ async fn localize(tokens: Vec<String>, state: State<'_, SessionState>) -> Res<Ha
 // ───────────────────────────── deploy / export / os ─────────────────────────────
 
 #[tauri::command]
-async fn deploy(app: tauri::AppHandle, folder: String, state: State<'_, SessionState>) -> Res<project::DeployResult> {
+async fn deploy(
+    app: tauri::AppHandle,
+    folder: String,
+    mode: Option<hud_core::library::InstallMode>,
+    state: State<'_, SessionState>,
+) -> Res<hud_core::library::InstallResult> {
     let (root, tf) = {
         let s = lock(&state)?;
         (s.root()?.clone(), s.game_dir.clone().ok_or("Set your TF2 folder first")?)
     };
-    project::deploy(&root, &tf, &folder, &backup_root(&app).join("_deploy"))
+    hud_core::library::install(&root, &tf, &folder, mode.unwrap_or_default(), &backup_root(&app).join("_deploy"))
 }
 
 #[tauri::command]
@@ -761,6 +769,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(SessionState::default())
+        .manage(game::GameState::default())
         .setup(|app| {
             let dir = app.path().app_config_dir().unwrap_or_else(|_| std::env::temp_dir().join("tf2-hud-studio"));
             let store = Store::load(&dir);
@@ -824,6 +833,24 @@ pub fn run() {
             tools::tools_register,
             tools::tools_launch,
             tools::tools_open_with,
+            imagetools::image_import,
+            imagetools::image_png_back,
+            hudlib::library_get,
+            hudlib::library_set,
+            hudlib::library_install,
+            hudlib::library_swap_plan,
+            hudlib::library_swap,
+            hudlib::library_uninstall,
+            hudlib::library_adopt,
+            hudlib::library_add,
+            hudlib::manifest_get,
+            hudlib::manifest_save,
+            hudlib::manifest_set_image,
+            game::display_size,
+            game::game_launch,
+            game::game_rcon,
+            game::game_status,
+            game::game_detach,
         ])
         .run(tauri::generate_context!())
         .expect("Failed to start HUD Studio");

@@ -110,9 +110,13 @@ function stem(path: string): string {
   return f.replace(/\.res$/i, '').toLowerCase();
 }
 
-/** Fills properties missing from `into` with those of `from` (into wins, like hudlayout over the self-entry). */
+/**
+ * Merges an element file's self-entry into its hudlayout entry. The self-entry wins: TF2 applies hudlayout.res
+ * first, then each element loads its own .res in ApplySchemeSettings, and the block named like the panel is
+ * applied to the panel itself (basechat.res's HudChat, huditemeffectmeter*.res, itemquickswitch.res, …).
+ */
 function absorb(into: El, from: El) {
-  for (const [k, v] of from.props) if (!into.props.has(k)) into.props.set(k, v);
+  for (const [k, v] of from.props) into.props.set(k, v);
   into.children.push(...from.children);
   into.sub.push(...from.sub);
   into.alsoFrom = [...(into.alsoFrom ?? []), from.home];

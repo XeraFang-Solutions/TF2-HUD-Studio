@@ -460,10 +460,8 @@ pub async fn image_editor_open(path: String, as_png: bool, state: State<'_, Sess
             let (bytes, _) = v.read_bytes(&path).ok_or_else(|| format!("{path} not found"))?;
             hud_core::vtf::to_png(&hud_core::vtf::decode(&bytes)?)
         })??;
-        let dir = std::env::temp_dir().join("tf2-hud-studio");
-        std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-        let stem = Path::new(&path).file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_else(|| "image".into());
-        let out = dir.join(format!("{stem}.png"));
+        let out = crate::imagetools::png_copy_path(&path);
+        std::fs::create_dir_all(out.parent().unwrap()).map_err(|e| e.to_string())?;
         std::fs::write(&out, png).map_err(|e| e.to_string())?;
         out
     } else {

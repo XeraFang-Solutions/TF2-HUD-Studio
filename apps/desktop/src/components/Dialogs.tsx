@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
-import { ExternalLink, FolderOpen, Plus, X } from 'lucide-react';
-import { api, type ExternalTool } from '../api.ts';
-import { docEdit, getState, guard, openFile, openProject, rebuildModel, refreshSemantics, set, toast, useStore } from '../store.ts';
+import { ExternalLink, FolderOpen, Library, Plus, X } from 'lucide-react';
+import { api, type ExternalTool, type InstallMode, type LaunchSettings } from '../api.ts';
+import { docEdit, getState, guard, openFile, openProject, rebuildModel, refreshSemantics, set, toast, updateSettings, useStore } from '../store.ts';
+import { HudDetailsForm, LibraryDialog, installSummary } from './Library.tsx';
 import { CONTROL_TEMPLATES } from '../vgui/catalog.ts';
 import { AppPicker } from './External.tsx';
 import { walk } from '../vgui/model.ts';
@@ -44,6 +45,7 @@ export function Welcome() {
       <div className="welcome-actions">
         <button className="btn primary big" onClick={() => void pickAndOpenHud()}><FolderOpen size={17} /> Open HUD folder</button>
         <button className="btn big" onClick={() => set({ dialog: { kind: 'new-hud' } })}><Plus size={17} /> New HUD</button>
+        <button className="btn big" onClick={() => set({ dialog: { kind: 'library' } })}><Library size={17} /> HUD library</button>
       </div>
       <div className="welcome-cols">
         <section>
@@ -66,12 +68,14 @@ export function Welcome() {
 function NewHud() {
   const app = useStore((s) => s.app);
   const [name, setName] = useState('My HUD');
-  const [parent, setParent] = useState(app?.settings.tfDir ? `${app.settings.tfDir}${app.settings.tfDir.includes('\\') ? '\\' : '/'}custom` : '');
+  const [parent, setParent] = useState(app?.settings.hudLibrary ?? (app?.settings.tfDir ? `${app.settings.tfDir}${app.settings.tfDir.includes('\\') ? '\\' : '/'}custom` : ''));
+  const [author, setAuthor] = useState('');
   const [template, setTemplate] = useState<'stock' | 'empty'>(app?.settings.tfDir ? 'stock' : 'empty');
   const create = async () => {
     const path = await guard('Creating HUD…', () => api.projectCreate(parent, name, template));
     if (path) {
       close();
+      await guard(null, () => api.manifestSave({ name, version: '1.0.0', author, description: '', icon: '', banner: '', homepage: '', source: '', license: '', tags: '' }, path));
       await openProject(path);
       toast(`Created ${name}`, 'ok');
     }
@@ -79,7 +83,8 @@ function NewHud() {
   return (
     <Modal title="New HUD" onClose={close}>
       <label className="field"><span>Name</span><input value={name} onChange={(e) => setName(e.target.value)} autoFocus /></label>
-      <label className="field"><span>Create in</span>
+      <label className="field"><span>Author (optional)</span><input value={author} onChange={(e) => setAuthor(e.target.value)} placeholder="Shown in the HUD library" /></label>
+      <label className="field"><span>Create in{app?.settings.hudLibrary ? ' (your HUD library)' : ''}</span>
         <span className="field-row"><input value={parent} onChange={(e) => setParent(e.target.value)} placeholder="Folder" />
           <button className="btn" onClick={async () => { const p = await openDialog({ directory: true }); if (typeof p === 'string') setParent(p); }}><FolderOpen size={14} /></button></span>
       </label>
@@ -122,6 +127,15 @@ function Settings() {
           <button className="btn primary" onClick={() => void saveTf()}>Use this folder</button></span>
       </label>
       {app.installs.length > 0 && <p className="hint">Found: {app.installs.map((i) => i.tfDir).join(', ')}</p>}
+      <h3>HUD library</h3>
+      <p className="hint">A folder you keep your HUDs in. From the library you can swap which HUD TF2 loads in one click. A link (a junction on Windows) installs a HUD without copying it, so saves show up in game straight away.</p>
+      <span className="field-row"><input readOnly value={app.settings.hudLibrary ?? ''} placeholder="Not set" />
+        <button className="btn" onClick={() => set({ dialog: { kind: 'library' } })}><Library size={14} /> Open library</button></span>
+      <label className="field"><span>Install HUDs as</span>
+        <Select value={app.settings.installMode ?? 'link'} onChange={(e) => void saveSettings({ installMode: e.target.value as InstallMode })}>
+          <option value="link">Link (no copy; saves space; edits are live)</option><option value="copy">Copy</option>
+        </Select></label>
+      <LaunchSection />
       <h3>Text editor</h3>
       <p className="hint">Used by “Open in editor” (source view, right-click on files, Problems). HUD Studio’s own editor is always available too.</p>
       <AppPicker category="text" value={app.settings.editor ?? { id: 'system', path: null, args: null }} onChange={(v) => void saveSettings({ editor: v })} />
@@ -146,16 +160,57 @@ function Settings() {
   );
 }
 
+// ── launching TF2 ─────────────────────────────────────────────────────────
+const isWindows = typeof navigator !== 'undefined' && /windows/i.test(navigator.userAgent);
+function LaunchSection() {
+  const app = useStore((s) => s.app);
+  const [extra, setExtra] = useState(app?.settings.launch.extraArgs ?? '');
+  if (!app) return null;
+  const l = app.settings.launch;
+  const save = (patch: Partial<LaunchSettings>) => void updateSettings({ launch: { ...l, ...patch } });
+  const num = (v: string) => (v.trim() === '' ? null : Math.max(320, Math.min(16384, Math.round(Number(v)) || 0)) || null);
+  const detect = async () => {
+    const r = await guard(null, () => api.displaySize());
+    if (r) { save({ width: r[0], height: r[1] }); toast(`Display: ${r[0]} × ${r[1]}`, 'ok'); }
+  };
+  return (
+    <>
+      <h3>Launching TF2</h3>
+      <p className="hint">The Play button starts TF2 to test your HUD. Steam needs to be running.{!isWindows ? ' On Linux TF2 is 64-bit only and is started through Steam.' : ''}</p>
+      {isWindows && (
+        <div className="field-grid">
+          <label className="field"><span>Build</span>
+            <Select value={l.bits} onChange={(e) => save({ bits: e.target.value as '64' | '32' })}><option value="64">64-bit (standard)</option><option value="32">32-bit (legacy)</option></Select></label>
+          <label className="field"><span>Start it</span>
+            <Select value={l.method} onChange={(e) => save({ method: e.target.value as 'direct' | 'steam' })}><option value="direct">Directly (lets HUD Studio pick 64/32-bit)</option><option value="steam">Through Steam</option></Select></label>
+        </div>
+      )}
+      <label className="check"><input type="checkbox" checked={l.itemtest} onChange={(e) => save({ itemtest: e.target.checked })} /> <span>Load straight into <code>itemtest</code> (local game: <code>sv_lan 1</code>, borderless window, quick-start switches)</span></label>
+      <div className="field-grid">
+        <label className="field"><span>Window width</span><input inputMode="numeric" defaultValue={l.width ?? ''} key={`w${l.width}`} placeholder="detected on first launch" onBlur={(e) => save({ width: num(e.target.value) })} /></label>
+        <label className="field"><span>Window height</span><input inputMode="numeric" defaultValue={l.height ?? ''} key={`h${l.height}`} placeholder="detected on first launch" onBlur={(e) => save({ height: num(e.target.value) })} /></label>
+        <button className="btn align-end" onClick={() => void detect()}>Use my display size</button>
+      </div>
+      <label className="check"><input type="checkbox" checked={l.rcon} onChange={(e) => save({ rcon: e.target.checked })} /> <span>Remote console (<code>-usercon</code> on 127.0.0.1, with a new password each launch): send commands and test buttons from HUD Studio</span></label>
+      <label className="check"><input type="checkbox" checked={l.consoleLog} onChange={(e) => save({ consoleLog: e.target.checked })} /> <span>Show the game’s console in HUD Studio (<code>-condebug</code>)</span></label>
+      <label className="check"><input type="checkbox" checked={l.reloadOnSave} onChange={(e) => save({ reloadOnSave: e.target.checked })} /> <span>Reload the HUD in TF2 after saving (<code>hud_reloadscheme</code>)</span></label>
+      <label className="field"><span>Extra launch options</span><input value={extra} placeholder="-novid +exec myconfig" onChange={(e) => setExtra(e.target.value)} onBlur={() => extra !== l.extraArgs && save({ extraArgs: extra })} spellCheck={false} /></label>
+    </>
+  );
+}
+
 // ── deploy ─────────────────────────────────────────────────────────────────
 function Deploy() {
   const project = useStore((s) => s.project);
+  const app = useStore((s) => s.app);
   const [folder, setFolder] = useState(project?.root.split(/[\\/]/).pop() ?? 'my-hud');
+  const [mode, setMode] = useState<InstallMode>(app?.settings.installMode ?? 'link');
   if (!project) return null;
   const run = async () => {
-    const r = await guard('Deploying…', () => api.deploy(folder));
+    const r = await guard('Installing…', () => api.deploy(folder, mode));
     if (!r) return;
     close();
-    toast(`Installed ${r.files} files to ${r.target}${r.previousBackedUpTo ? ' · previous copy backed up' : ''}. In game, run hud_reloadscheme.`, 'ok');
+    toast(`${installSummary(r)}. In game, run hud_reloadscheme.`, 'ok');
   };
   const exportZip = async () => {
     const { save } = await import('@tauri-apps/plugin-dialog');
@@ -170,11 +225,18 @@ function Deploy() {
         <p>This HUD already lives in <code>tf/custom</code>, so TF2 loads it directly. Save, then type <code>hud_reloadscheme</code> in the game console to see changes (some files need a map change or restart).</p>
       ) : project.game ? (
         <>
-          <p>Copy this HUD into <code>{project.game.tfDir}/custom/</code>. An existing folder with the same name is moved to backups first.</p>
+          <p>Install this HUD as <code>{project.game.tfDir}/custom/{folder}</code>. Whatever is there now is unlinked, or moved to backups if it’s a real folder.</p>
           <label className="field"><span>Folder name</span><input value={folder} onChange={(e) => setFolder(e.target.value)} /></label>
+          <label className="field"><span>Install as</span>
+            <Select value={mode} onChange={(e) => setMode(e.target.value as InstallMode)}>
+              <option value="link">Link: TF2 reads this folder directly, so every save is live</option>
+              <option value="copy">Copy: a snapshot; install again to update it</option>
+            </Select></label>
         </>
       ) : <p>Set your TF2 folder in Settings to install HUDs directly.</p>}
       <footer>
+        <button className="btn" onClick={() => set({ dialog: { kind: 'hud-details' } })}>HUD details…</button>
+        <button className="btn" onClick={() => set({ dialog: { kind: 'library' } })}><Library size={14} /> HUD library</button>
         <button className="btn" onClick={() => void exportZip()}>Export .zip…</button>
         {!project.insideTfCustom && project.game && <button className="btn primary" onClick={() => void run()}>Install to TF2</button>}
       </footer>
@@ -189,17 +251,23 @@ function Tools() {
   useEffect(() => void refresh(), []);
   return (
     <Modal title="External tools" onClose={close} wide>
-      <p className="hint">Model and 3D tools you already have. Your text and image editors are chosen in Settings. HUD Studio never downloads or bundles any of them.</p>
+      <p className="hint">Tools you already have. HUD Studio finds them in the usual install folders, or you can point it at the program. It never downloads or bundles any of them. Your text and image editors are chosen in Settings.</p>
+      {(['gui', 'cli'] as const).map((kind) => (
+      <React.Fragment key={kind}>
+      <h3>{kind === 'gui' ? 'Apps' : 'Command-line converters'}</h3>
+      {kind === 'cli' && <p className="hint">Used by Images → Import: ImageMagick turns TGA, JPG, PSD and WebP into PNG first, and VTFCmd (it comes with VTFEdit and VTFEdit Reloaded) makes compressed DXT5 textures. PNG → VTF needs neither.</p>}
       <div className="tools-list">
-        {tools.map((t) => (
+        {tools.filter((t) => (t.kind ?? 'gui') === kind).map((t) => (
           <div className="tool-row" key={t.id}>
-            <div className="tool-info"><strong>{t.name}</strong><span className="muted">{t.path ?? 'Not found — choose its .exe to register it'}</span></div>
+            <div className="tool-info"><strong>{t.name}</strong><span className="muted">{t.about}</span><span className="muted small">{t.path ?? 'Not found. Choose its program to use it.'}</span></div>
             <span className={t.available ? 'pill ok' : 'pill'}>{t.available ? (t.detected ? 'Detected' : 'Registered') : 'Missing'}</span>
             <button className="btn" onClick={async () => { const p = await openDialog({ multiple: false, title: `Locate ${t.name}` }); if (typeof p === 'string') { await guard(null, () => api.toolsRegister(t.id, p)); void refresh(); } }}>Choose…</button>
-            <button className="btn" disabled={!t.available} onClick={() => api.toolsLaunch(t.id).catch((e) => toast(String(e), 'error'))}><ExternalLink size={13} /> Launch</button>
+            {t.kind !== 'cli' && <button className="btn" disabled={!t.available} onClick={() => api.toolsLaunch(t.id).catch((e) => toast(String(e), 'error'))}><ExternalLink size={13} /> Launch</button>}
           </div>
         ))}
       </div>
+      </React.Fragment>
+      ))}
     </Modal>
   );
 }
@@ -307,6 +375,11 @@ export function Dialogs() {
     case 'tools': return <Tools />;
     case 'quick-open': return <QuickOpen />;
     case 'add-element': return <AddElement />;
+    case 'library': return <Modal title="HUD library" onClose={close} wide><LibraryDialog onClose={close} /></Modal>;
+    case 'hud-details': {
+      const back = d.path ? () => set({ dialog: { kind: 'library' } }) : close;
+      return <Modal title="HUD details" onClose={back}><HudDetailsForm path={d.path} onDone={back} /></Modal>;
+    }
     default: return null;
   }
 }

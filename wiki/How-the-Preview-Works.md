@@ -31,6 +31,7 @@ right, which is the usual drop shadow.
 ## Files and inheritance
 - `#base "file.res"` merges another file under this one. **The including file wins**, and nested blocks merge key by key.
 - Within one block, the **first** occurrence of a key wins. Duplicate *blocks* both apply, so the later one's values override.
+- In the whole-HUD view, an element's own file wins over `hudlayout.res` for the keys it sets: TF2 applies `hudlayout.res` first, then each element loads its `.res` and applies the block named like itself. That's why `basechat.res`, the `huditemeffectmeter*.res` files and `itemquickswitch.res` decide where those panels go.
 - Lookups follow TF2's search path: your HUD, then `tf/`, then TF2's VPK files. File names are case-insensitive.
 
 ## Conditions

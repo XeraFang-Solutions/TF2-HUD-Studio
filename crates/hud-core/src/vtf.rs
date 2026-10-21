@@ -305,6 +305,104 @@ pub fn to_png(img: &Image) -> Result<Vec<u8>, String> {
     Ok(out)
 }
 
+/// Decodes a PNG (any colour type or bit depth `png` supports) to RGBA8.
+pub fn from_png(bytes: &[u8]) -> Result<Image, String> {
+    let mut dec = png::Decoder::new(bytes);
+    dec.set_transformations(png::Transformations::EXPAND | png::Transformations::STRIP_16);
+    let mut reader = dec.read_info().map_err(|e| format!("Not a readable PNG: {e}"))?;
+    let mut buf = vec![0; reader.output_buffer_size()];
+    let info = reader.next_frame(&mut buf).map_err(|e| e.to_string())?;
+    let (w, h) = (info.width, info.height);
+    let px = &buf[..info.buffer_size()];
+    let rgba: Vec<u8> = match info.color_type {
+        png::ColorType::Rgba => px.to_vec(),
+        png::ColorType::Rgb => px.chunks_exact(3).flat_map(|c| [c[0], c[1], c[2], 255]).collect(),
+        png::ColorType::GrayscaleAlpha => px.chunks_exact(2).flat_map(|c| [c[0], c[0], c[0], c[1]]).collect(),
+        png::ColorType::Grayscale => px.iter().flat_map(|&g| [g, g, g, 255]).collect(),
+        png::ColorType::Indexed => return Err("Unexpected indexed PNG after expansion".into()),
+    };
+    if rgba.len() != (w * h * 4) as usize {
+        return Err("PNG pixel data has an unexpected size".into());
+    }
+    Ok(Image { width: w, height: h, rgba })
+}
+
+/// Nearest power of two at or above `n` (VTFs for the HUD are usually power-of-two sized).
+pub fn next_pow2(n: u32) -> u32 {
+    n.max(1).next_power_of_two()
+}
+
+/// Bilinear resize, used to make an imported image power-of-two sized.
+pub fn resize(img: &Image, w: u32, h: u32) -> Image {
+    if img.width == w && img.height == h {
+        return Image { width: w, height: h, rgba: img.rgba.clone() };
+    }
+    let mut out = vec![0u8; (w * h * 4) as usize];
+    let (sw, sh) = (img.width as f32, img.height as f32);
+    for y in 0..h {
+        let fy = ((y as f32 + 0.5) * sh / h as f32 - 0.5).clamp(0.0, sh - 1.0);
+        let (y0, ty) = (fy.floor() as u32, fy - fy.floor());
+        let y1 = (y0 + 1).min(img.height - 1);
+        for x in 0..w {
+            let fx = ((x as f32 + 0.5) * sw / w as f32 - 0.5).clamp(0.0, sw - 1.0);
+            let (x0, tx) = (fx.floor() as u32, fx - fx.floor());
+            let x1 = (x0 + 1).min(img.width - 1);
+            for c in 0..4 {
+                let p = |xx: u32, yy: u32| img.rgba[((yy * img.width + xx) * 4 + c) as usize] as f32;
+                let top = p(x0, y0) * (1.0 - tx) + p(x1, y0) * tx;
+                let bot = p(x0, y1) * (1.0 - tx) + p(x1, y1) * tx;
+                out[((y * w + x) * 4 + c) as usize] = (top * (1.0 - ty) + bot * ty).round() as u8;
+            }
+        }
+    }
+    Image { width: w, height: h, rgba: out }
+}
+
+/// HUD texture flags: clamp S/T, no mipmaps, no LOD, 8-bit alpha.
+pub const HUD_FLAGS: u32 = 0x4 | 0x8 | 0x100 | 0x200 | 0x2000;
+
+/// Encodes a single-frame, mip-less BGRA8888 VTF 7.2 (lossless; what HUD images normally use).
+pub fn encode_bgra8888(img: &Image, flags: u32) -> Result<Vec<u8>, String> {
+    if img.width == 0 || img.height == 0 || img.width > 4096 || img.height > 4096 {
+        return Err("VTF images must be between 1 and 4096 pixels on each side".into());
+    }
+    let mut b = vec![0u8; 80];
+    b[0..4].copy_from_slice(b"VTF\0");
+    b[4..8].copy_from_slice(&7u32.to_le_bytes());
+    b[8..12].copy_from_slice(&2u32.to_le_bytes());
+    b[12..16].copy_from_slice(&80u32.to_le_bytes());
+    b[16..18].copy_from_slice(&(img.width as u16).to_le_bytes());
+    b[18..20].copy_from_slice(&(img.height as u16).to_le_bytes());
+    let has_alpha = img.rgba.chunks_exact(4).any(|p| p[3] != 255);
+    let flags = if has_alpha { flags } else { flags & !0x2000 };
+    b[20..24].copy_from_slice(&flags.to_le_bytes());
+    b[24..26].copy_from_slice(&1u16.to_le_bytes()); // frames
+    b[26..28].copy_from_slice(&0u16.to_le_bytes()); // first frame
+                                                    // reflectivity: average colour
+    let n = (img.width * img.height) as f32;
+    for c in 0..3 {
+        let avg = img.rgba.chunks_exact(4).map(|p| p[c] as f32 / 255.0).sum::<f32>() / n;
+        b[32 + c * 4..36 + c * 4].copy_from_slice(&avg.to_le_bytes());
+    }
+    b[48..52].copy_from_slice(&1.0f32.to_le_bytes()); // bumpmap scale
+    b[52..56].copy_from_slice(&12u32.to_le_bytes()); // BGRA8888
+    b[56] = 1; // mipmap count
+    b[57..61].copy_from_slice(&0xFFFF_FFFFu32.to_le_bytes()); // no low-res image
+    b[61] = 0;
+    b[62] = 0;
+    b[63..65].copy_from_slice(&1u16.to_le_bytes()); // depth
+    b.reserve(img.rgba.len());
+    for p in img.rgba.chunks_exact(4) {
+        b.extend_from_slice(&[p[2], p[1], p[0], p[3]]);
+    }
+    Ok(b)
+}
+
+/// The material a HUD image needs next to its VTF.
+pub fn hud_vmt(texture: &str) -> String {
+    format!("\"UnlitGeneric\"\n{{\n\t\"$basetexture\"\t\"{texture}\"\n\t\"$translucent\"\t\"1\"\n\t\"$vertexalpha\"\t\"1\"\n\t\"$vertexcolor\"\t\"1\"\n\t\"$ignorez\"\t\"1\"\n}}\n")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -347,5 +445,23 @@ mod tests {
         block[8..10].copy_from_slice(&0x07E0u16.to_le_bytes()); // green
         let img = decode(&vtf72(15, 4, 4, &block)).unwrap();
         assert_eq!(&img.rgba[0..4], &[0, 255, 0, 128]);
+    }
+
+    #[test]
+    fn encode_round_trips() {
+        let img = Image { width: 3, height: 2, rgba: vec![255, 0, 0, 255, 0, 255, 0, 128, 0, 0, 255, 0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120] };
+        let v = encode_bgra8888(&img, HUD_FLAGS).unwrap();
+        let back = decode(&v).unwrap();
+        assert_eq!((back.width, back.height), (3, 2));
+        assert_eq!(back.rgba, img.rgba);
+        let i = info(&v).unwrap();
+        assert_eq!(i.format, "BGRA8888");
+        assert_eq!(i.flags & 0x2000, 0x2000);
+        let png = to_png(&img).unwrap();
+        assert_eq!(from_png(&png).unwrap().rgba, img.rgba);
+        let r = resize(&img, 4, 2);
+        assert_eq!((r.width, r.height, r.rgba.len()), (4, 2, 32));
+        assert_eq!(next_pow2(100), 128);
+        assert!(hud_vmt("vgui/replay/x").contains("\"$basetexture\"\t\"vgui/replay/x\""));
     }
 }

@@ -34,5 +34,21 @@ In **Images** (the picture icon), pick a material and choose one of these:
 - **Edit a PNG copy** decodes the texture, including TF2's stock ones, to a PNG in your temp folder and opens that.
   When you're done, convert it back to VTF (for example with VTFEdit) and save it into your HUD's `materials/` folder.
 
+After editing a PNG copy, **Save PNG copy into HUD** writes it back as a VTF. If the texture is one of TF2's own, it's saved in
+your HUD as an override.
+
+## Importing images
+**Images → Import** turns a picture into a HUD material, `materials/vgui/<name>.vtf` and a matching `.vmt`. The default name,
+`replay/thumbnails/<file>`, can be used in an element's `image` straight away.
+
+| Input or option | Needs |
+| --- | --- |
+| PNG | Nothing: HUD Studio writes a lossless BGRA8888 VTF without mipmaps itself. |
+| TGA, JPG, BMP, PSD, WebP, GIF | [ImageMagick](https://imagemagick.org), which converts to PNG first. |
+| Compress (DXT5) | VTFCmd, which comes with VTFEdit and VTFEdit Reloaded. |
+| Scale to a power of two | Nothing. |
+
 ## Other tools
-The **Tools** panel (wrench icon) remembers where **Crowbar** and **Blender** are installed for model work, and can launch them.
+The **Tools** panel (wrench icon) finds and launches **Crowbar**, **Blender**, **VTFEdit** and **VTFEdit Reloaded**. It also locates the
+command-line converters **VTFCmd** and **ImageMagick** that image import uses. If one isn't found, press **Choose…** and point
+at its program.

@@ -3,7 +3,9 @@
 pub mod anim;
 pub mod fontmeta;
 pub mod images;
+pub mod library;
 pub mod lint;
+pub mod manifest;
 pub mod project;
 pub mod resolve;
 pub mod scheme;
