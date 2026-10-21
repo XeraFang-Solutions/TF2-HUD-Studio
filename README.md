@@ -108,9 +108,24 @@ from. It may be rough, so back up your HUD before you use it.
 - **Reload HUD** after every save, plus one-click **test commands**: change class or map, add bots, give yourself crits, Über or any Mannpower power-up, force a win, turn on tournament mode, show the VGUI panel tree, and more.
 - Finds your TF2 install through Steam automatically.
 
+### Screenshots
+
+| Start screen | Source view |
+| --- | --- |
+| ![Start screen with recent and installed HUDs](artwork/screenshots/home.png) | ![Source view of hudlayout.res](artwork/screenshots/source.png) |
+
 | Scheme editor | Animation timeline |
 | --- | --- |
 | ![Scheme editor](artwork/screenshots/scheme.png) | ![Animation timeline](artwork/screenshots/animations.png) |
+
+| Settings | External tools |
+| --- | --- |
+| ![Settings: TF2 folder, HUD library and launch options](artwork/screenshots/settings.png) | ![External tools: Crowbar, Blender, VTFEdit, 7-Zip, PeaZip, VTFCmd](artwork/screenshots/tools.png) |
+
+<p align="center">
+  <img src="artwork/screenshots/panels.png" alt="Sidebar panels: Elements, Images, Search, Problems and Game" width="100%">
+  <br><sub>Sidebar panels: Elements, Images, Search, Problems and the Game console with test commands</sub>
+</p>
 
 ## Getting started
 
@@ -170,6 +185,8 @@ On macOS, use <kbd>Cmd</kbd> instead of <kbd>Ctrl</kbd>.
 
 Open **HUD library** (the books icon, bottom left) and choose a folder outside `tf/custom`, for example `Documents/TF2 HUDs`.
 Every HUD in that folder appears as a card.
+
+<p align="center"><img src="artwork/screenshots/library.png" alt="HUD library" width="49%"> <img src="artwork/screenshots/marketplace.png" alt="Marketplace" width="49%"></p>
 
 The **Marketplace** tab loads [Hypnootize's Updated HUDs List](https://github.com/Hypnootize/TF2-HUDs-Archive/blob/master/Updated%20HUDs%20List.md). Search by HUD or creator, open screenshot albums and repositories, or **Add to library** to download and extract a HUD. Downloads do not change the active TF2 HUD: switch to **My HUDs** and choose **Use this HUD** when ready. A saved catalogue remains available if refreshing fails; downloads still need an internet connection. The list's “updated” status is maintained by the archive and is not a compatibility guarantee.
 
