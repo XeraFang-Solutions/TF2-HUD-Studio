@@ -47,15 +47,17 @@ pub async fn library_set(path: Option<String>, store: State<'_, StoreState>) -> 
     };
     let tf = {
         let mut st = lock(&store)?;
+        // Validate before persisting: a rejected selection must not become the download destination.
+        if let (Some(p), Some(t)) = (&path, &st.settings.tf_dir) {
+            let tf = dunce::canonicalize(t).unwrap_or_else(|_| PathBuf::from(t));
+            if Path::new(p).starts_with(tf.join("custom")) {
+                return Err("Keep the library outside tf/custom - TF2 would load every HUD in it at once.".into());
+            }
+        }
         st.settings.hud_library = path.clone();
         st.save()?;
         st.settings.tf_dir.clone().map(PathBuf::from)
     };
-    if let (Some(p), Some(t)) = (&path, &tf) {
-        if Path::new(p).starts_with(t.join("custom")) {
-            return Err("Keep the library outside tf/custom — TF2 would load every HUD in it at once.".into());
-        }
-    }
     Ok(library::state(path.as_deref().map(Path::new), tf.as_deref()))
 }
 

@@ -5,6 +5,7 @@ import { FolderOpen, Link2, Pencil, Plus, Repeat, Trash2, Upload } from 'lucide-
 import { api, errorText, type HudDetails, type InstallMode, type InstallResult, type LibraryHud, type LibraryState, type Manifest } from '../api.ts';
 import { ask, guard, openProject, set, toast, updateSettings, useStore } from '../store.ts';
 import { Select } from './Select.tsx';
+import { Marketplace } from './Marketplace.tsx';
 
 export function installSummary(r: InstallResult): string {
   const parts = [r.mode === 'link' ? `Linked ${r.target}` : `Copied ${r.files} files to ${r.target}`];
@@ -21,6 +22,8 @@ export function LibraryDialog({ onClose }: { onClose: () => void }) {
   const app = useStore((s) => s.app);
   const project = useStore((s) => s.project);
   const [lib, setLib] = useState<LibraryState | null>(null);
+  const [tab, setTab] = useState<'local' | 'marketplace'>('local');
+  const [marketVisited, setMarketVisited] = useState(false);
   const mode = app?.settings.installMode ?? 'link';
   const refresh = async () => setLib((await guard(null, () => api.libraryGet())) ?? null);
   useEffect(() => void refresh(), []);
@@ -87,6 +90,12 @@ export function LibraryDialog({ onClose }: { onClose: () => void }) {
             <option value="copy">Copy</option>
           </Select></label>
       </div>
+      <div className="market-tabs" role="tablist" aria-label="HUD library views">
+        <button className={'btn' + (tab === 'local' ? ' primary' : '')} role="tab" aria-selected={tab === 'local'} onClick={() => setTab('local')}>My HUDs{lib ? ` (${lib.huds.length})` : ''}</button>
+        <button className={'btn' + (tab === 'marketplace' ? ' primary' : '')} role="tab" aria-selected={tab === 'marketplace'} onClick={() => { setMarketVisited(true); setTab('marketplace'); }}>Marketplace</button>
+      </div>
+      <div hidden={tab !== 'marketplace'}>{marketVisited && <Marketplace library={lib?.library ?? null} huds={lib?.huds ?? []} onImported={refresh} />}</div>
+      <div hidden={tab !== 'local'}>
       {!lib?.library && <p className="hint">Pick a folder (for example Documents/TF2 HUDs). Every HUD in it shows up here, and one click swaps which one TF2 loads. Linking means TF2 reads the library copy directly: nothing is duplicated, and every save shows up in game.</p>}
       {lib?.library && (
         <>
@@ -138,6 +147,7 @@ export function LibraryDialog({ onClose }: { onClose: () => void }) {
           )}
         </>
       )}
+      </div>
     </>
   );
 }

@@ -254,7 +254,7 @@ function Tools() {
       <p className="hint">Tools you already have. HUD Studio finds them in the usual install folders, or you can point it at the program. It never downloads or bundles any of them. Your text and image editors are chosen in Settings.</p>
       {(['gui', 'cli'] as const).map((kind) => (
       <React.Fragment key={kind}>
-      <h3>{kind === 'gui' ? 'Apps' : 'Command-line converters'}</h3>
+        <h3>{kind === 'gui' ? 'Apps' : 'Command-line tools'}</h3>
       {kind === 'cli' && <p className="hint">Used by Images → Import: ImageMagick turns TGA, JPG, PSD and WebP into PNG first, and VTFCmd (it comes with VTFEdit and VTFEdit Reloaded) makes compressed DXT5 textures. PNG → VTF needs neither.</p>}
       <div className="tools-list">
         {tools.filter((t) => (t.kind ?? 'gui') === kind).map((t) => (

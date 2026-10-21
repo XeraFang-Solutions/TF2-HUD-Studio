@@ -1,6 +1,6 @@
 [package]
 name = "tf2-hud-studio"
-version = "1.1.1"
+version = "1.1.2"
 edition = "2021"
 license = "GPL-2.0-only"
 repository = "https://github.com/XeraFang-Solutions/TF2-HUD-Studio"
@@ -17,6 +17,10 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 dunce = "1"
 open = "5"
+ureq = "3"
+regex = "1"
+url = "2"
+base64 = "0.22"
 hud-syntax = { path = "../../../crates/hud-syntax" }
 hud-core = { path = "../../../crates/hud-core" }
 

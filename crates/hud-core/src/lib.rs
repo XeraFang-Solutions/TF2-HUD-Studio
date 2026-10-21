@@ -6,6 +6,7 @@ pub mod images;
 pub mod library;
 pub mod lint;
 pub mod manifest;
+pub mod marketplace;
 pub mod project;
 pub mod resolve;
 pub mod scheme;

@@ -1,5 +1,6 @@
 //! External asset tools. Only known tool ids can be registered; registrations persist in settings.
-//! Launches never go through a shell and only ever pass a single project file path as the argument.
+//! Launches never go through a shell. Asset opening passes a single project file path;
+//! marketplace extraction uses fixed 7-Zip command arguments in a private staging folder.
 //!
 //! * GUI tools: Crowbar (models), Blender, VTFEdit and VTFEdit Reloaded (textures).
 //! * Command-line converters used by image import: VTFCmd (VTFLib's CLI, ships with VTFEdit/VTFEdit Reloaded) for
@@ -42,6 +43,24 @@ struct ToolDef {
 const TEXTURE_DIRS: &[&str] = &["VTFEdit", "Nem's Tools\\VTFEdit", "VTFEdit Reloaded", "VTFEdit-Reloaded", "VTFEdit Reloaded\\*", "VTFLib", "VTFLib\\*"];
 
 const TOOLS: &[ToolDef] = &[
+    ToolDef {
+        id: "7zip",
+        name: "7-Zip",
+        kind: "cli",
+        about: "Extracts marketplace 7z and RAR HUD downloads (ZIP works without it)",
+        exe: &["7z.exe", "7zz.exe", "7zz", "7z"],
+        dirs: &["7-Zip"],
+        opens: &[],
+    },
+    ToolDef {
+        id: "peazip-7z",
+        name: "PeaZip (7-Zip backend)",
+        kind: "cli",
+        about: "Uses PeaZip's bundled 7z executable to extract marketplace HUDs",
+        exe: &["7z.exe", "7zz", "7z"],
+        dirs: &["PeaZip\\res\\bin\\7z", "PeaZip\\res\\bin\\7z\\*"],
+        opens: &[],
+    },
     ToolDef {
         id: "crowbar",
         name: "Crowbar",
@@ -240,7 +259,7 @@ pub fn tools_register(id: String, path: Option<String>, state: State<'_, Session
 pub fn tools_launch(id: String, state: State<'_, SessionState>) -> Result<(), String> {
     let def = tool_def(&id)?;
     if def.kind == "cli" {
-        return Err(format!("{} is a command-line tool; HUD Studio uses it when importing images.", def.name));
+        return Err(format!("{} is a command-line tool; HUD Studio uses it for imports.", def.name));
     }
     let exe = resolve_tool(&state, &id)?;
     Command::new(exe).spawn().map_err(|e| format!("Could not launch tool: {e}"))?;

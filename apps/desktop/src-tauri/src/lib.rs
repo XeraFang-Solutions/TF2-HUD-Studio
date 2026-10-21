@@ -1,7 +1,9 @@
+mod album;
 mod editors;
 mod game;
 mod hudlib;
 mod imagetools;
+mod marketplace;
 mod session;
 mod settings;
 mod tools;
@@ -770,6 +772,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .manage(SessionState::default())
         .manage(game::GameState::default())
+        .manage(marketplace::MarketplaceState::default())
         .setup(|app| {
             let dir = app.path().app_config_dir().unwrap_or_else(|_| std::env::temp_dir().join("tf2-hud-studio"));
             let store = Store::load(&dir);
@@ -836,6 +839,10 @@ pub fn run() {
             imagetools::image_import,
             imagetools::image_png_back,
             hudlib::library_get,
+            marketplace::marketplace_list,
+            marketplace::marketplace_import,
+            marketplace::marketplace_open,
+            marketplace::marketplace_preview,
             hudlib::library_set,
             hudlib::library_install,
             hudlib::library_swap_plan,
