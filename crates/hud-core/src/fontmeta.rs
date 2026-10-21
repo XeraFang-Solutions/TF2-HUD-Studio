@@ -37,7 +37,7 @@ fn name(b: &[u8], name_table: usize, id: u16) -> Option<String> {
         }
         let raw = b.get(storage + off..storage + off + len)?;
         if platform == 3 || platform == 0 {
-            let units: Vec<u16> = raw.chunks_exact(2).map(|c| u16::from_be_bytes([c[0], c[1]])).collect();
+            let units: Vec<u16> = raw.as_chunks::<2>().0.iter().map(|&c| u16::from_be_bytes(c)).collect();
             let s = String::from_utf16_lossy(&units);
             if platform == 3 && (lang == 0x409 || fallback.is_none()) {
                 if lang == 0x409 {

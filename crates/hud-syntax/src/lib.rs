@@ -751,11 +751,11 @@ pub enum Encoding {
 /// UTF-8 BOMs stay in the text (the lexer treats them as whitespace) so round trips stay exact.
 pub fn decode(bytes: &[u8]) -> Result<(String, Encoding), String> {
     if bytes.len() >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE {
-        let units: Vec<u16> = bytes[2..].chunks_exact(2).map(|c| u16::from_le_bytes([c[0], c[1]])).collect();
+        let units: Vec<u16> = bytes[2..].as_chunks::<2>().0.iter().map(|&c| u16::from_le_bytes(c)).collect();
         return String::from_utf16(&units).map(|s| (s, Encoding::Utf16Le)).map_err(|_| "Invalid UTF-16 text".into());
     }
     if bytes.len() >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF {
-        let units: Vec<u16> = bytes[2..].chunks_exact(2).map(|c| u16::from_be_bytes([c[0], c[1]])).collect();
+        let units: Vec<u16> = bytes[2..].as_chunks::<2>().0.iter().map(|&c| u16::from_be_bytes(c)).collect();
         return String::from_utf16(&units).map(|s| (s, Encoding::Utf16Be)).map_err(|_| "Invalid UTF-16 text".into());
     }
     match std::str::from_utf8(bytes) {

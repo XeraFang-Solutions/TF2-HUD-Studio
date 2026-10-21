@@ -316,8 +316,8 @@ pub fn from_png(bytes: &[u8]) -> Result<Image, String> {
     let px = &buf[..info.buffer_size()];
     let rgba: Vec<u8> = match info.color_type {
         png::ColorType::Rgba => px.to_vec(),
-        png::ColorType::Rgb => px.chunks_exact(3).flat_map(|c| [c[0], c[1], c[2], 255]).collect(),
-        png::ColorType::GrayscaleAlpha => px.chunks_exact(2).flat_map(|c| [c[0], c[0], c[0], c[1]]).collect(),
+        png::ColorType::Rgb => px.as_chunks::<3>().0.iter().flat_map(|&[r, g, b]| [r, g, b, 255]).collect(),
+        png::ColorType::GrayscaleAlpha => px.as_chunks::<2>().0.iter().flat_map(|&[g, a]| [g, g, g, a]).collect(),
         png::ColorType::Grayscale => px.iter().flat_map(|&g| [g, g, g, 255]).collect(),
         png::ColorType::Indexed => return Err("Unexpected indexed PNG after expansion".into()),
     };
@@ -373,7 +373,7 @@ pub fn encode_bgra8888(img: &Image, flags: u32) -> Result<Vec<u8>, String> {
     b[12..16].copy_from_slice(&80u32.to_le_bytes());
     b[16..18].copy_from_slice(&(img.width as u16).to_le_bytes());
     b[18..20].copy_from_slice(&(img.height as u16).to_le_bytes());
-    let has_alpha = img.rgba.chunks_exact(4).any(|p| p[3] != 255);
+    let has_alpha = img.rgba.as_chunks::<4>().0.iter().any(|p| p[3] != 255);
     let flags = if has_alpha { flags } else { flags & !0x2000 };
     b[20..24].copy_from_slice(&flags.to_le_bytes());
     b[24..26].copy_from_slice(&1u16.to_le_bytes()); // frames
@@ -381,7 +381,7 @@ pub fn encode_bgra8888(img: &Image, flags: u32) -> Result<Vec<u8>, String> {
                                                     // reflectivity: average colour
     let n = (img.width * img.height) as f32;
     for c in 0..3 {
-        let avg = img.rgba.chunks_exact(4).map(|p| p[c] as f32 / 255.0).sum::<f32>() / n;
+        let avg = img.rgba.as_chunks::<4>().0.iter().map(|p| p[c] as f32 / 255.0).sum::<f32>() / n;
         b[32 + c * 4..36 + c * 4].copy_from_slice(&avg.to_le_bytes());
     }
     b[48..52].copy_from_slice(&1.0f32.to_le_bytes()); // bumpmap scale
@@ -392,7 +392,7 @@ pub fn encode_bgra8888(img: &Image, flags: u32) -> Result<Vec<u8>, String> {
     b[62] = 0;
     b[63..65].copy_from_slice(&1u16.to_le_bytes()); // depth
     b.reserve(img.rgba.len());
-    for p in img.rgba.chunks_exact(4) {
+    for p in img.rgba.as_chunks::<4>().0 {
         b.extend_from_slice(&[p[2], p[1], p[0], p[3]]);
     }
     Ok(b)
