@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "TF2 HUD Studio",
-  "version": "1.0.0",
-  "identifier": "systems.trigon.tf2hudstudio",
+  "version": "1.1.1",
+  "identifier": "solutions.xerafang.tf2hudstudio",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",

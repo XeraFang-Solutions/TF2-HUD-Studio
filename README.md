@@ -260,8 +260,8 @@ The app itself is a single portable file, but your settings live in your user pr
 
 | | Windows | Linux | macOS |
 | --- | --- | --- | --- |
-| Settings | `%APPDATA%\systems.trigon.tf2hudstudio\` | `~/.config/systems.trigon.tf2hudstudio/` | `~/Library/Application Support/systems.trigon.tf2hudstudio/` |
-| Backups | `%APPDATA%\systems.trigon.tf2hudstudio\backups\` | `~/.local/share/systems.trigon.tf2hudstudio/backups/` | `~/Library/Application Support/systems.trigon.tf2hudstudio/backups/` |
+| Settings | `%APPDATA%\solutions.xerafang.tf2hudstudio\` | `~/.config/solutions.xerafang.tf2hudstudio/` | `~/Library/Application Support/solutions.xerafang.tf2hudstudio/` |
+| Backups | `%APPDATA%\solutions.xerafang.tf2hudstudio\backups\` | `~/.local/share/solutions.xerafang.tf2hudstudio/backups/` | `~/Library/Application Support/solutions.xerafang.tf2hudstudio/backups/` |
 
 Each save makes a backup folder, and the newest 60 per HUD are kept. You can turn backups off in Settings, and
 **Settings** shows the exact path on your machine.

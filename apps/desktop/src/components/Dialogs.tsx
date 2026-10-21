@@ -75,7 +75,7 @@ function NewHud() {
     const path = await guard('Creating HUD…', () => api.projectCreate(parent, name, template));
     if (path) {
       close();
-      await guard(null, () => api.manifestSave({ name, version: '1.0.0', author, description: '', icon: '', banner: '', homepage: '', source: '', license: '', tags: '' }, path));
+      await guard(null, () => api.manifestSave({ name, version: '1.1.0', author, description: '', icon: '', banner: '', homepage: '', source: '', license: '', tags: '' }, path));
       await openProject(path);
       toast(`Created ${name}`, 'ok');
     }

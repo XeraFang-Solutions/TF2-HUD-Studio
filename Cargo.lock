@@ -3424,7 +3424,7 @@ dependencies = [
 
 [[package]]
 name = "tf2-hud-studio"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "dunce",
  "hud-core",

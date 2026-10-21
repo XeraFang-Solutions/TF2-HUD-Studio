@@ -144,7 +144,7 @@ export function LibraryDialog({ onClose }: { onClose: () => void }) {
 
 const FIELDS: { key: keyof Manifest; label: string; placeholder?: string; long?: boolean }[] = [
   { key: 'name', label: 'Name' },
-  { key: 'version', label: 'Version', placeholder: '1.0.0' },
+  { key: 'version', label: 'Version', placeholder: '1.1.0' },
   { key: 'author', label: 'Author' },
   { key: 'description', label: 'Description', long: true },
   { key: 'homepage', label: 'Homepage', placeholder: 'https://…' },

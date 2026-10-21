@@ -272,7 +272,7 @@ mod tests {
         assert!(!det.has_manifest);
         assert_eq!(det.manifest.name, "Sayo", "falls back to info.vdf");
 
-        let m = Manifest { name: "bxhud sayo".into(), version: "1.0.0".into(), description: "Flush-left \"chat\"".into(), ..Default::default() };
+        let m = Manifest { name: "bxhud sayo".into(), version: "1.1.0".into(), description: "Flush-left \"chat\"".into(), ..Default::default() };
         write(&d, &m).unwrap();
         let text = fs::read_to_string(d.join(FILE_NAME)).unwrap();
         assert!(text.starts_with("\"TFHUD\""));
