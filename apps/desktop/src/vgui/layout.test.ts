@@ -1,6 +1,19 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { computePos, encodePos, computeSize, encodeSize, pinnedPos, layoutTree, encodeMove, type LayoutInput, type LayoutBox } from './layout.ts';
+import { clientToUnits, computePos, encodePos, computeSize, encodeSize, pinnedPos, layoutTree, encodeMove, type LayoutInput, type LayoutBox } from './layout.ts';
+
+test('pointer placement follows the rendered canvas at fractional and nonuniform scale', () => {
+  const screen = { x: 0, y: 0, w: 480 * 16 / 9, h: 480 };
+  for (const [width, height] of [[1066.5, 600.25], [640, 360], [1920, 1080], [800, 600]]) {
+    const rect = { left: 137.5, top: 49.25, width, height };
+    assert.deepEqual(clientToUnits({ clientX: rect.left, clientY: rect.top }, rect, screen), { x: 0, y: 0 });
+    const center = clientToUnits({ clientX: rect.left + width / 2, clientY: rect.top + height / 2 }, rect, screen);
+    assert.ok(Math.abs(center.x - screen.w / 2) < 1e-10);
+    assert.equal(center.y, 240);
+    const moved = clientToUnits({ clientX: rect.left + width / 2 + width * 10 / screen.w, clientY: rect.top + height / 2 }, rect, screen);
+    assert.ok(Math.abs(moved.x - center.x - 10) < 1e-10);
+  }
+});
 
 test('positions follow Panel::ComputePos', () => {
   assert.equal(computePos('10', 50, 640), 10);

@@ -161,24 +161,15 @@ fn direct_exe(root: &Path, bits: &str) -> Result<PathBuf, String> {
 }
 
 /// How to start Steam with `-applaunch`.
-fn steam_command() -> Option<Command> {
+fn steam_command(tf_dir: &Path) -> Option<Command> {
     #[cfg(windows)]
     {
+        let _ = tf_dir;
         hud_core::project::steam_roots().into_iter().map(|r| r.join("steam.exe")).find(|p| p.is_file()).map(Command::new)
     }
     #[cfg(not(windows))]
     {
-        let in_path = |n: &str| std::env::var_os("PATH").is_some_and(|p| std::env::split_paths(&p).any(|d| d.join(n).is_file()));
-        if in_path("steam") {
-            return Some(Command::new("steam"));
-        }
-        let flatpak = Command::new("flatpak").args(["info", "com.valvesoftware.Steam"]).output().is_ok_and(|o| o.status.success());
-        if flatpak {
-            let mut c = Command::new("flatpak");
-            c.args(["run", "com.valvesoftware.Steam"]);
-            return Some(c);
-        }
-        None
+        crate::steam::command(tf_dir)
     }
 }
 
@@ -356,7 +347,7 @@ pub fn game_launch(
         return Err("TF2 on Linux is 64-bit only; the 32-bit (legacy) build is Windows-only.".into());
     }
     let (method, program, child) = if use_steam {
-        let mut c = steam_command().ok_or("Couldn't find Steam to start TF2")?;
+        let mut c = steam_command(&tf_dir).ok_or("TF2 was found, but its Steam launcher could not be found. Check that the Steam client (or Flatpak Steam) is installed and accessible to HUD Studio.")?;
         let program = format!("{:?}", c.get_program());
         c.args(["-applaunch", "440"]).args(&args);
         c.spawn().map_err(|e| format!("Couldn't start Steam: {e}"))?;

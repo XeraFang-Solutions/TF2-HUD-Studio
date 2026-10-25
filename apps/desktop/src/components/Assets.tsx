@@ -5,19 +5,10 @@ import { api, errorText, type ImageResult } from '../api.ts';
 import { openInImageEditor, useAppName } from './External.tsx';
 import { ask, editElements, getState, guard, refreshFiles, toast, useStore } from '../store.ts';
 import { findEl } from '../vgui/model.ts';
-
-const cache = new Map<string, ImageResult | null>();
+import { clearImageCache, useCachedImage } from '../vgui/imageCache.ts';
 
 export function useImagePreview(name: string | undefined): ImageResult | null {
-  const [, force] = useState(0);
-  const key = (name ?? '').toLowerCase();
-  useEffect(() => {
-    if (!key || cache.has(key)) return;
-    let live = true;
-    api.image(name!).then((r) => cache.set(key, r), () => cache.set(key, null)).finally(() => live && force((n) => n + 1));
-    return () => { live = false; };
-  }, [key]);
-  return key ? cache.get(key) ?? null : null;
+  return useCachedImage(name);
 }
 
 /** materials/vgui/replay/x.vmt → replay/x ; materials/hud/x.vmt → ../hud/x */
@@ -48,7 +39,7 @@ function ImportForm({ onDone }: { onDone: (vmtPath: string | null) => void }) {
     try {
       const r = await api.imageImport(src, { name, compress, powerOfTwo: pot, overwrite });
       toast(`Imported ${r.texture} (${r.width}×${r.height})${r.material ? ' with a new .vmt' : ''}`, 'ok');
-      cache.delete(r.image.toLowerCase());
+      clearImageCache();
       await refreshFiles();
       onDone(`materials/vgui/${r.image}.vmt`);
     } catch (e) {
@@ -131,7 +122,7 @@ export function Assets() {
                 onClick={async () => {
                   const rel = await guard('Converting…', () => api.imagePngBack(img.texture, false));
                   if (rel) {
-                    cache.delete((name ?? '').toLowerCase());
+                    clearImageCache();
                     toast(`Saved the PNG copy into ${rel}`, 'ok');
                     await refreshFiles();
                     const p = picked;

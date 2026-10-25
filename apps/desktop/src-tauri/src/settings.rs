@@ -80,12 +80,22 @@ impl Default for Settings {
             backups: true,
             editor: Default::default(),
             image_editor: Default::default(),
-            platform: hud_syntax::Platform::Windows,
+            platform: native_platform(),
             ui: serde_json::Value::Object(Default::default()),
             hud_library: None,
             install_mode: Default::default(),
             launch: Default::default(),
         }
+    }
+}
+
+fn native_platform() -> hud_syntax::Platform {
+    if cfg!(target_os = "linux") {
+        hud_syntax::Platform::Linux
+    } else if cfg!(target_os = "macos") {
+        hud_syntax::Platform::Mac
+    } else {
+        hud_syntax::Platform::Windows
     }
 }
 
@@ -113,5 +123,19 @@ impl Store {
         self.settings.recent_projects.retain(|p| !p.eq_ignore_ascii_case(project));
         self.settings.recent_projects.insert(0, project.to_string());
         self.settings.recent_projects.truncate(12);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn preview_defaults_to_host_but_retains_an_explicit_target() {
+        let missing: Settings = serde_json::from_str("{}").unwrap();
+        assert_eq!(missing.platform, native_platform());
+        let explicit: Settings = serde_json::from_str(r#"{"platform":"linux"}"#).unwrap();
+        assert_eq!(explicit.platform, hud_syntax::Platform::Linux);
+        let explicit: Settings = serde_json::from_str(r#"{"platform":"windows"}"#).unwrap();
+        assert_eq!(explicit.platform, hud_syntax::Platform::Windows);
     }
 }

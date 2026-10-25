@@ -3,6 +3,15 @@
 
 export type Rect = { x: number; y: number; w: number; h: number };
 
+/** Pointer events and DOM rectangles share CSS pixels. Use the actual rendered size rather than a nominal
+ * zoom factor, so fractional scaling, WebKit layout rounding and CSS transforms don't skew edits. */
+export function clientToUnits(point: { clientX: number; clientY: number }, rect: { left: number; top: number; width: number; height: number }, screen: Rect): { x: number; y: number } {
+  return {
+    x: screen.x + (rect.width > 0 ? (point.clientX - rect.left) * screen.w / rect.width : 0),
+    y: screen.y + (rect.height > 0 ? (point.clientY - rect.top) * screen.h / rect.height : 0),
+  };
+}
+
 /** C atoi: leading integer, ignoring trailing junk. */
 export function atoi(s: string): number {
   const m = /^\s*[+-]?\d+/.exec(s);

@@ -6,6 +6,8 @@ mod imagetools;
 mod marketplace;
 mod session;
 mod settings;
+#[cfg(any(not(windows), test))]
+mod steam;
 mod tools;
 
 use hud_core::{anim, images, lint, project, resolve, scheme, vfs};

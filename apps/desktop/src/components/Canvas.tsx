@@ -1,34 +1,13 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { api, type ImageResult } from '../api.ts';
 import { editElements, getState, set, useStore } from '../store.ts';
-import { computePos, encodeMove, encodeSize, layoutTree, screenUnits, type LayoutBox, type Rect } from '../vgui/layout.ts';
+import { clientToUnits, computePos, encodeMove, encodeSize, layoutTree, screenUnits, type LayoutBox, type Rect } from '../vgui/layout.ts';
 import { findEl, layoutInputs, toEl, walk, type El } from '../vgui/model.ts';
 import { alignment, borderSides, fontStyle, sampleText, type RGBA, type SchemeIndex } from '../vgui/scheme.ts';
 import { controlKind } from '../vgui/catalog.ts';
 import { evaluate, expand } from '../vgui/anim.ts';
+import { useCachedImage as useImage } from '../vgui/imageCache.ts';
 
 // ── image cache ────────────────────────────────────────────────────────────
-const imageCache = new Map<string, ImageResult | 'missing' | Promise<void>>();
-const imageListeners = new Set<() => void>();
-export function clearImageCache() {
-  imageCache.clear();
-}
-function useImage(name: string | undefined): ImageResult | null {
-  const [, force] = useState(0);
-  useEffect(() => {
-    const l = () => force((n) => n + 1);
-    imageListeners.add(l);
-    return () => void imageListeners.delete(l);
-  }, []);
-  if (!name) return null;
-  const key = name.toLowerCase();
-  const hit = imageCache.get(key);
-  if (hit === undefined) {
-    imageCache.set(key, api.image(name).then((r) => void imageCache.set(key, r), () => void imageCache.set(key, 'missing')).finally(() => imageListeners.forEach((l) => l())));
-    return null;
-  }
-  return typeof hit === 'object' && 'dataUrl' in hit ? hit : null;
-}
 
 // ── value lookup with drag + animation overrides ───────────────────────────
 type Overrides = Map<string, Record<string, string>>;
@@ -359,6 +338,8 @@ export function Canvas() {
   const [avail, setAvail] = useState({ w: 900, h: 500 });
   const [drag, setDrag] = useState<Drag | null>(null);
   const [overrides, setOverrides] = useState<Overrides>(new Map());
+  const pendingOverrides = useRef<Overrides>(new Map());
+  const updateOverrides = (next: Overrides) => { pendingOverrides.current = next; setOverrides(next); };
   const [guides, setGuides] = useState<{ x: number[]; y: number[] }>({ x: [], y: [] });
   const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null);
 
@@ -395,13 +376,15 @@ export function Canvas() {
 
   const toUnits = (e: { clientX: number; clientY: number }) => {
     const r = surfaceRef.current!.getBoundingClientRect();
-    return { x: (e.clientX - r.left) / k, y: (e.clientY - r.top) / k };
+    return clientToUnits(e, r, screen);
   };
   const surfaceRef = useRef<HTMLDivElement>(null);
 
   const onDown = (e: React.PointerEvent, el: El) => {
     if (e.button !== 0) return;
     e.stopPropagation();
+    surfaceRef.current?.setPointerCapture(e.pointerId);
+    updateOverrides(new Map());
     const additive = e.shiftKey || e.ctrlKey || e.metaKey;
     let nextSel = selection;
     if (additive) nextSel = sel.has(el.uid) ? selection.filter((u) => u !== el.uid) : [...selection, el.uid];
@@ -415,16 +398,20 @@ export function Canvas() {
   };
 
   const onHandleDown = (e: React.PointerEvent, handle: string) => {
+    if (e.button !== 0) return;
     e.stopPropagation();
     const el = findEl(model, selection[0]);
     const box = el && boxes.get(el.uid);
     if (!el || !box) return;
+    surfaceRef.current?.setPointerCapture(e.pointerId);
+    updateOverrides(new Map());
     const p = toUnits(e);
     setDrag({ kind: 'resize', handle, startX: p.x, startY: p.y, box, el, moved: false });
   };
 
   const onBackgroundDown = (e: React.PointerEvent) => {
     if (e.button !== 0) return;
+    surfaceRef.current?.setPointerCapture(e.pointerId);
     const p = toUnits(e);
     if (!(e.shiftKey || e.ctrlKey)) set({ selection: [] });
     setDrag({ kind: 'marquee', startX: p.x, startY: p.y, x: p.x, y: p.y, additive: e.shiftKey || e.ctrlKey });
@@ -496,13 +483,16 @@ export function Canvas() {
         next.set(drag.el.uid, props);
       }
       setGuides({ x: gx, y: gy });
-      setOverrides(next);
+      updateOverrides(next);
       if (!drag.moved) setDrag({ ...drag, moved: true } as Drag);
     };
-    const up = async () => {
+    const up = async (e: PointerEvent) => {
+      // Commit the release position even if the last pointermove hasn't caused a React render yet.
+      if (drag.kind !== 'marquee') move(e);
       setGuides({ x: [], y: [] });
       if (drag.kind === 'marquee') {
-        const r = { x: Math.min(drag.startX, drag.x), y: Math.min(drag.startY, drag.y), w: Math.abs(drag.x - drag.startX), h: Math.abs(drag.y - drag.startY) };
+        const end = toUnits(e);
+        const r = { x: Math.min(drag.startX, end.x), y: Math.min(drag.startY, end.y), w: Math.abs(end.x - drag.startX), h: Math.abs(end.y - drag.startY) };
         if (r.w > 2 || r.h > 2) {
           const hits: string[] = [];
           walk(model, (el) => {
@@ -514,9 +504,9 @@ export function Canvas() {
         setDrag(null);
         return;
       }
-      const pending = overrides;
+      const pending = pendingOverrides.current;
       setDrag(null);
-      if (!drag.moved || pending.size === 0) return;
+      if (pending.size === 0) return;
       const edits: { el: El; key: string; value: string }[] = [];
       for (const [uid, props] of pending) {
         const el = findEl(model, uid);
@@ -524,13 +514,16 @@ export function Canvas() {
         for (const [key, val] of Object.entries(props)) if (el.props.get(key)?.value !== val) edits.push({ el, key, value: val });
       }
       if (edits.length) await editElements(edits);
-      setOverrides(new Map());
+      updateOverrides(new Map());
     };
+    const cancel = () => { setDrag(null); setGuides({ x: [], y: [] }); updateOverrides(new Map()); };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up, { once: true });
+    window.addEventListener('pointercancel', cancel, { once: true });
     return () => {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', cancel);
     };
   }, [drag, overrides, k, boxes, model, snap]);
 

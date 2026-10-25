@@ -146,10 +146,11 @@ function Settings() {
       <label className="check"><input type="checkbox" checked={app.settings.backups} onChange={(e) => void saveSettings({ backups: e.target.checked })} /> Back up files before overwriting them</label>
       <p className="hint">Backups go to <code>{app.backupDir}</code>, one folder per save; the newest 60 are kept per HUD.</p>
       <h3>Preview</h3>
-      <label className="field"><span>Evaluate [$WIN32] / [$LINUX] / [$OSX] conditions as</span>
+      <label className="field"><span>Preview target operating system</span>
         <Select value={app.settings.platform} onChange={async (e) => { await saveSettings({ platform: e.target.value as 'windows' | 'linux' | 'mac' }); await refreshSemantics(); await rebuildModel(); }}>
-          <option value="windows">Windows (most players)</option><option value="linux">Linux / Steam Deck</option><option value="mac">macOS</option>
+          <option value="windows">Windows</option><option value="linux">Linux / Steam Deck</option><option value="mac">macOS</option>
         </Select></label>
+      <p className="hint">Use the platform TF2 runs on. The legacy [$WIN32] desktop flag is active on Linux too; [$WINDOWS], [$LINUX] and [$OSX] select OS-specific settings. Older saved settings keep their selected target.</p>
       <label className="field"><span>Backdrop</span>
         <Select value={(app.settings.ui?.backdrop as string) ?? 'dusk'} onChange={(e) => void saveSettings({ ui: { ...app.settings.ui, backdrop: e.target.value } })}>
           <option value="dusk">Dusk (warm gradient)</option><option value="day">Daylight map</option><option value="dark">Dark</option><option value="checker">Transparency checker</option>

@@ -97,7 +97,14 @@ impl GameAssets {
         self.vpks.iter().find_map(|v| v.read(norm)).map(|b| (b, Origin::Stock(norm.to_string())))
     }
     pub fn exists(&self, norm: &str) -> bool {
-        self.vpks.iter().any(|v| v.contains(norm)) || self.tf_dir.join(norm).is_file()
+        if self.vpks.iter().any(|v| v.contains(norm)) || self.tf_dir.join(norm).is_file() {
+            return true;
+        }
+        #[cfg(not(windows))]
+        if find_case_insensitive(&self.tf_dir, norm).is_some_and(|p| p.is_file()) {
+            return true;
+        }
+        false
     }
     pub fn list(&self, prefix: &str) -> Vec<String> {
         let mut v: Vec<String> = self.vpks.iter().flat_map(|p| p.list(prefix)).collect();

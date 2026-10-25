@@ -2,8 +2,9 @@
 import { useSyncExternalStore } from 'react';
 import { api, errorText, inTauri, type Animations, type AppInfo, type GameStatus, type Settings, type Doc, type ElementEdit, type FileEntry, type Problem, type ProjectInfo, type Resolved, type Scheme } from './api.ts';
 import { buildComposite, fileElements, findEl, editTarget, originLabel, walk, type El, type Home } from './vgui/model.ts';
-import { SchemeIndex, registerFonts } from './vgui/scheme.ts';
+import { SchemeIndex, clearFonts, registerFonts } from './vgui/scheme.ts';
 import { ASPECTS } from './vgui/layout.ts';
+import { clearImageCache } from './vgui/imageCache.ts';
 
 export type Sidebar = 'files' | 'elements' | 'search' | 'problems' | 'assets' | 'game';
 export type GameLine = { id: number; kind: 'log' | 'cmd' | 'reply' | 'error' | 'info'; text: string };
@@ -182,6 +183,7 @@ export async function openProject(path: string) {
   const project = await guard('Opening HUD…', () => api.projectOpen(path));
   if (!project) return;
   set({ project, files: project.files, tabs: [], active: null, docs: {}, selection: [], model: [], history: [], future: [], problems: [], animations: null, playback: null, localized: {} });
+  clearImageCache();
   if (project.gameError) toast(`TF2 files unavailable: ${project.gameError}`, 'error');
   await refreshSemantics();
   const start = project.files.find((f) => /^scripts\/hudlayout\.res$/i.test(f.path)) ?? project.files.find((f) => isRes(f.path));
@@ -192,22 +194,29 @@ export async function openProject(path: string) {
 
 export async function refreshFiles() {
   const files = await guard(null, () => api.projectRefresh());
-  if (files) set({ files });
+  if (files) { set({ files }); clearImageCache(); }
 }
 
 /** Scheme, fonts, element→file mapping and animations: things that change rarely. */
+let semanticsGeneration = 0;
 export async function refreshSemantics() {
+  const generation = ++semanticsGeneration;
+  clearImageCache();
+  clearFonts();
   const [scheme, animations] = await Promise.all([guard(null, () => api.scheme()), guard(null, () => api.animations())]);
+  if (generation !== semanticsGeneration) return;
   set({ scheme: scheme ?? null, schemeIndex: new SchemeIndex(scheme ?? null), animations: animations ?? null });
   void guard(null, () => api.fonts()).then(async (fonts) => {
-    if (fonts) {
+    if (fonts && generation === semanticsGeneration) {
       await registerFonts(fonts);
       set((s) => ({ fontsVersion: s.fontsVersion + 1 }));
     }
   });
   const layout = await guard(null, () => api.resolve('scripts/hudlayout.res'));
+  if (generation !== semanticsGeneration) return;
   const names = (layout?.roots.find((r) => r.value === undefined)?.children ?? []).filter((c) => c.value === undefined).map((c) => c.key);
   const elementFiles = (await guard(null, () => api.elementFiles(names))) ?? {};
+  if (generation !== semanticsGeneration) return;
   set({ elementFiles });
 }
 

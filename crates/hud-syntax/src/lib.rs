@@ -435,25 +435,31 @@ pub fn platform() -> Platform {
 
 /// Evaluates a bracketed KeyValues condition suffix (e.g. "$WIN32", "!$X360") for the target platform.
 pub fn condition_met(condition: &str) -> bool {
+    condition_met_for(condition, platform())
+}
+
+/// WIN32 is Source's legacy desktop/PC condition, not an alias of WINDOWS.
+/// Evaluate explicitly for tests without changing process-global preview state.
+pub fn condition_met_for(condition: &str, p: Platform) -> bool {
     // Compound conditions such as "$WIN32 && !$X360" or "$OSX || $LINUX"
     if condition.contains("||") {
-        return condition.split("||").any(|c| condition_met(c.trim()));
+        return condition.split("||").any(|c| condition_met_for(c.trim(), p));
     }
     if condition.contains("&&") {
-        return condition.split("&&").all(|c| condition_met(c.trim()));
+        return condition.split("&&").all(|c| condition_met_for(c.trim(), p));
     }
     let condition = condition.trim();
     let (negate, flag) = match condition.strip_prefix('!') {
         Some(f) => (true, f),
         None => (false, condition),
     };
-    let p = platform();
     let met = match flag.trim_start_matches('$').to_ascii_uppercase().as_str() {
-        "WIN32" | "WINDOWS" => p == Platform::Windows,
+        "WIN32" => true,
+        "WINDOWS" => p == Platform::Windows,
         "OSX" => p == Platform::Mac,
         "LINUX" => p == Platform::Linux,
         "POSIX" => p != Platform::Windows,
-        "X360" | "PS3" | "GAMECONSOLE" | "DECK" => false,
+        "X360" | "X360WIDE" | "PS3" | "GAMECONSOLE" | "DECK" => false,
         _ => return true, // unrecognized flag: keep the property visible/editable rather than guess wrong
     };
     if negate {
@@ -842,7 +848,19 @@ mod tests {
     #[test]
     fn x360_never_matches_this_desktop_build() {
         assert!(!condition_met("$X360"));
+        assert!(!condition_met("$X360WIDE"));
         assert!(condition_met("!$X360"))
+    }
+    #[test]
+    fn linux_keeps_pc_coordinates_and_uses_linux_os_conditions() {
+        for p in [Platform::Windows, Platform::Linux, Platform::Mac] {
+            assert!(condition_met_for("$WIN32", p));
+            assert!(!condition_met_for("!$WIN32", p));
+            assert!(condition_met_for("$WIN32 && !$X360", p));
+        }
+        assert!(!condition_met_for("$WINDOWS", Platform::Linux));
+        assert!(condition_met_for("$LINUX && $POSIX", Platform::Linux));
+        assert!(!condition_met_for("$LINUX", Platform::Windows));
     }
     #[test]
     fn compound_conditions() {

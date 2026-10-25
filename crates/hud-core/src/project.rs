@@ -283,12 +283,43 @@ pub fn steam_roots() -> Vec<PathBuf> {
     #[cfg(not(windows))]
     if let Some(home) = std::env::var_os("HOME") {
         let h = PathBuf::from(home);
-        roots.push(h.join(".steam/steam"));
-        roots.push(h.join(".local/share/Steam"));
-        roots.push(h.join(".var/app/com.valvesoftware.Steam/.local/share/Steam"));
+        roots.extend(unix_steam_roots(&h, std::env::var_os("XDG_DATA_HOME").as_deref().map(Path::new)));
         roots.push(h.join("Library/Application Support/Steam"));
     }
     roots
+}
+
+/// Kept independent of the host OS so Linux layouts can also be regression-tested on Windows.
+pub fn unix_steam_roots(home: &Path, data_home: Option<&Path>) -> Vec<PathBuf> {
+    let mut roots = vec![
+        home.join(".steam/steam"),
+        home.join(".steam/root"),
+        home.join(".steam/debian-installation"),
+        home.join(".local/share/Steam"),
+        home.join(".var/app/com.valvesoftware.Steam/.local/share/Steam"),
+        home.join(".var/app/com.valvesoftware.Steam/.steam/steam"),
+    ];
+    if let Some(data) = data_home.filter(|p| p.is_absolute()) {
+        roots.insert(0, data.join("Steam"));
+    }
+    roots
+}
+
+pub fn steam_libraries(root: &Path) -> Vec<PathBuf> {
+    let mut libraries = vec![root.to_path_buf()];
+    for vdf in [root.join("steamapps/libraryfolders.vdf"), root.join("config/libraryfolders.vdf")] {
+        let Ok(bytes) = fs::read(&vdf) else { continue };
+        let Ok((text, _)) = hud_syntax::decode(&bytes) else { continue };
+        for r in hud_syntax::tree(&text).roots {
+            for lib in r.children.iter().filter(|c| c.key.parse::<u32>().is_ok()) {
+                // Steam has used both numbered scalar paths and numbered blocks with a path key.
+                if let Some(p) = if lib.is_block() { lib.get("path") } else { lib.value.as_deref() } {
+                    libraries.push(PathBuf::from(p.replace("\\\\", "\\")));
+                }
+            }
+        }
+    }
+    libraries
 }
 
 pub fn list_custom_huds(tf_dir: &Path) -> Vec<CustomHud> {
@@ -307,23 +338,16 @@ pub fn list_custom_huds(tf_dir: &Path) -> Vec<CustomHud> {
 
 /// Finds TF2 installs through Steam's library list.
 pub fn discover() -> Vec<GameInstall> {
+    discover_from_roots(&steam_roots())
+}
+
+pub fn discover_from_roots(roots: &[PathBuf]) -> Vec<GameInstall> {
     let mut libraries: Vec<PathBuf> = Vec::new();
-    for root in steam_roots() {
+    for root in roots {
         if !root.is_dir() {
             continue;
         }
-        libraries.push(root.clone());
-        for vdf in [root.join("steamapps/libraryfolders.vdf"), root.join("config/libraryfolders.vdf")] {
-            let Ok(bytes) = fs::read(&vdf) else { continue };
-            let Ok((text, _)) = hud_syntax::decode(&bytes) else { continue };
-            for r in hud_syntax::tree(&text).roots {
-                for lib in r.children.iter().filter(|c| c.is_block()) {
-                    if let Some(p) = lib.get("path") {
-                        libraries.push(PathBuf::from(p.replace("\\\\", "\\")));
-                    }
-                }
-            }
-        }
+        libraries.extend(steam_libraries(root));
     }
     let mut seen = Vec::new();
     let mut out = Vec::new();

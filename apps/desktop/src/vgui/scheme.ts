@@ -68,9 +68,18 @@ export function hexOf(c: RGBA): string {
 // ── fonts ──────────────────────────────────────────────────────────────────
 
 const loadedFaces = new Map<string, { cell: number; ascent: number }>();
+const registeredFaces = new Set<FontFace>();
+let fontGeneration = 0;
+
+export function clearFonts() {
+  fontGeneration++;
+  for (const face of registeredFaces) document.fonts.delete(face);
+  registeredFaces.clear(); loadedFaces.clear();
+}
 
 /** Registers HUD + TF2 font files with the webview under every family name the scheme might use. */
 export async function registerFonts(fonts: FontData[]): Promise<void> {
+  const generation = fontGeneration;
   for (const f of fonts) {
     const bin = Uint8Array.from(atob(f.base64), (c) => c.charCodeAt(0));
     for (const family of f.families) {
@@ -79,7 +88,9 @@ export async function registerFonts(fonts: FontData[]): Promise<void> {
       try {
         const face = new FontFace(cssFamilyName(family), bin.buffer.slice(0));
         await face.load();
+        if (generation !== fontGeneration) return;
         document.fonts.add(face);
+        registeredFaces.add(face);
         loadedFaces.set(key, { cell: f.cellRatio, ascent: f.ascentRatio });
       } catch {
         /* unsupported font file; the preview falls back to a system face */
