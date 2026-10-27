@@ -45,6 +45,7 @@ It is a portable app for Windows, Linux and macOS: download one file and run it,
 - [HUD library and TFHUD.manifest](#hud-library-and-tfhudmanifest)
 - [Testing in TF2](#testing-in-tf2)
 - [Text and image editors](#text-and-image-editors)
+- [Themes](#themes)
 - [Where things are stored](#where-things-are-stored)
 - [Building from source](#building-from-source)
 - [Tests](#tests)
@@ -287,6 +288,21 @@ For a `.vtf`, **Edit a PNG copy** decodes it to a PNG that any image editor can 
 
 The **Tools** panel (the wrench icon, bottom left) finds and launches **Crowbar**, **Blender**, **VTFEdit** and **VTFEdit Reloaded**. It
 also locates the command-line converters **VTFCmd** and **ImageMagick**, or lets you point it at them.
+
+## Themes
+
+HUD Studio's own interface is themeable; the HUD preview never is. Open **Settings → Appearance** to switch themes, or
+**Customize…** to make your own.
+
+- **Built-in themes:** **TF2** (the default), **TF2 RED**, **TF2 BLU**, **Workshop** (the classic HUD Studio look) and
+  **Mann Co. Light**. Built-in themes can't be edited: **Customize a copy** makes your own version.
+- **Your themes** can change every interface color (surfaces, text, accent, team and status colors), the Source view's
+  syntax colors, the heading, interface and code fonts, corner rounding, bevels, and uppercase TF2-style headings.
+  Changes show up immediately and are saved with your settings.
+- **TF2's fonts** (TF2 Build, TF2 Secondary, TF2 Professor) are Valve's, so HUD Studio doesn't ship them: themes that use
+  them load the fonts from your TF2 folder (`tf/resource`). Without a TF2 folder, a similar font is used.
+- **Sharing:** **Export…** saves a theme as a small `.json` file; **Import…** adds one. Imported files are checked: only
+  colors, plain font names and a few on/off settings are read from them.
 
 ## Where things are stored
 

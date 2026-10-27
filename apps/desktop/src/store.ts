@@ -1,4 +1,5 @@
 // Global editor state with a tiny subscribe/notify store (no external state library needed).
+import type { Theme } from './theme.ts';
 import { useSyncExternalStore } from 'react';
 import { api, errorText, inTauri, type Animations, type AppInfo, type GameStatus, type Settings, type Doc, type ElementEdit, type FileEntry, type Problem, type ProjectInfo, type Resolved, type Scheme } from './api.ts';
 import { buildComposite, fileElements, findEl, editTarget, originLabel, walk, type El, type Home } from './vgui/model.ts';
@@ -26,6 +27,10 @@ export type State = {
   scheme: Scheme | null;
   schemeIndex: SchemeIndex;
   fontsVersion: number;
+  /** Theme being edited (shown live, saved shortly after). */
+  themeDraft: Theme | null;
+  /** TF2 font files found for the interface (null until checked). */
+  uiFonts: string[] | null;
   /** hudlayout element → .res files it loads */
   elementFiles: Record<string, string[]>;
   model: El[];
@@ -51,7 +56,7 @@ export type State = {
   history: string[];
   future: string[];
   reveal: { file: string; offset?: number; line?: number; nonce: number } | null;
-  dialog: null | { kind: 'settings' | 'new-hud' | 'deploy' | 'tools' | 'quick-open' | 'add-element' | 'about' | 'library' | 'hud-details'; path?: string };
+  dialog: null | { kind: 'settings' | 'new-hud' | 'deploy' | 'tools' | 'quick-open' | 'add-element' | 'about' | 'library' | 'hud-details' | 'theme'; path?: string };
   /** TF2 started from HUD Studio: console.log lines and remote console traffic */
   gameLog: GameLine[];
   game: GameStatus | null;
@@ -69,7 +74,7 @@ const saved = (() => {
 
 let state: State = {
   app: null, project: null, files: [], tabs: [], active: null, docs: {}, view: 'design', sidebar: 'files',
-  scheme: null, schemeIndex: new SchemeIndex(null), fontsVersion: 0, elementFiles: {}, model: [], modelLabel: '', modelError: null,
+  scheme: null, schemeIndex: new SchemeIndex(null), fontsVersion: 0, themeDraft: null, uiFonts: null, elementFiles: {}, model: [], modelLabel: '', modelError: null,
   selection: [], hidden: new Set(), resolution: saved.resolution ?? { w: ASPECTS[0].w, h: ASPECTS[0].h }, zoom: 'fit',
   showHidden: saved.showHidden ?? false, showGrid: saved.showGrid ?? false, snap: saved.snap ?? 1, composite: saved.composite ?? true, scenario: (CLASSES as readonly string[]).includes(saved.scenario) || saved.scenario === 'all' ? saved.scenario : 'soldier',
   animations: null, playback: null, problems: [], localized: {}, toasts: [], busy: null, history: [], future: [], reveal: null, dialog: null, ask: null, menu: null, gameLog: [], game: null,

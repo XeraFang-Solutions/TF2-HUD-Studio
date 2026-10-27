@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { useAppearance } from './appearance.ts';
 import { AlertTriangle, Code2, ExternalLink, Eye, Files, FolderOpen, Gamepad2, Grid3x3, ImageIcon, Layers, LayoutPanelTop, Library, Magnet, MonitorPlay, Plus, Redo2, Save, Search, Settings2, Undo2, Upload, Wrench, X } from 'lucide-react';
 import { api, inTauri } from './api.ts';
 import { CLASSES, type Scenario, closeTab, getState, init, isAnimFile, isRes, isSchemeFile, redo, refreshFiles, refreshSemantics, rebuildModel, saveAll, set, toast, undo, useStore, type Sidebar as SidebarKind, type View } from './store.ts';
@@ -196,6 +197,7 @@ function Toasts() {
 export function App() {
   const project = useStore((s) => s.project);
   const view = useStore((s) => s.view);
+  useAppearance();
   useEffect(() => {
     if (inTauri) void init();
   }, []);

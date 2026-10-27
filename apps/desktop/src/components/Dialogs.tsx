@@ -8,6 +8,7 @@ import { CONTROL_TEMPLATES } from '../vgui/catalog.ts';
 import { AppPicker } from './External.tsx';
 import { walk } from '../vgui/model.ts';
 import { Select } from './Select.tsx';
+import { ThemeDialogBody, ThemePicker } from './ThemeEditor.tsx';
 
 function Modal({ title, children, onClose, wide }: { title: string; children: React.ReactNode; onClose: () => void; wide?: boolean }) {
   useEffect(() => {
@@ -119,6 +120,9 @@ function Settings() {
   };
   return (
     <Modal title="Settings" onClose={close} wide>
+      <h3>Appearance</h3>
+      <p className="hint">HUD Studio’s own colors and fonts. TF2 themes use the fonts from your TF2 install.</p>
+      <ThemePicker />
       <h3>Team Fortress 2</h3>
       <p className="hint">The “tf” folder inside your TF2 install. Used for the default HUD files, TF2’s fonts and icons, and deploying.</p>
       <label className="field"><span>TF2 folder</span>
@@ -376,6 +380,7 @@ export function Dialogs() {
     case 'tools': return <Tools />;
     case 'quick-open': return <QuickOpen />;
     case 'add-element': return <AddElement />;
+    case 'theme': return <Modal title="Appearance" onClose={close} wide><ThemeDialogBody onClose={close} /></Modal>;
     case 'library': return <Modal title="HUD library" onClose={close} wide><LibraryDialog onClose={close} /></Modal>;
     case 'hud-details': {
       const back = d.path ? () => set({ dialog: { kind: 'library' } }) : close;

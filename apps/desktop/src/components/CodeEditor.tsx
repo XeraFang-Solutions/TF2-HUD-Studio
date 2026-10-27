@@ -88,14 +88,14 @@ const theme = EditorView.theme({
   '&': { height: '100%', fontSize: '13px', backgroundColor: 'var(--code-bg)', color: 'var(--text)' },
   '.cm-content': { fontFamily: 'var(--mono)', caretColor: 'var(--accent)' },
   '.cm-gutters': { backgroundColor: 'var(--code-bg)', color: 'var(--faint)', border: 'none' },
-  '.cm-activeLine': { backgroundColor: 'rgba(240,164,58,.06)' },
-  '.cm-activeLineGutter': { backgroundColor: 'rgba(240,164,58,.1)', color: 'var(--text)' },
-  '&.cm-focused .cm-selectionBackground, .cm-selectionBackground': { backgroundColor: 'rgba(240,164,58,.25) !important' },
+  '.cm-activeLine': { backgroundColor: 'rgba(var(--accent-rgb),.06)' },
+  '.cm-activeLineGutter': { backgroundColor: 'rgba(var(--accent-rgb),.1)', color: 'var(--text)' },
+  '&.cm-focused .cm-selectionBackground, .cm-selectionBackground': { backgroundColor: 'rgba(var(--accent-rgb),.25) !important' },
   '.cm-cursor': { borderLeftColor: 'var(--accent)' },
   '.cm-tooltip': { backgroundColor: 'var(--raised)', border: '1px solid var(--line)', color: 'var(--text)' },
-  '.cm-tooltip-autocomplete ul li[aria-selected]': { backgroundColor: 'var(--accent)', color: '#241b16' },
+  '.cm-tooltip-autocomplete ul li[aria-selected]': { backgroundColor: 'var(--accent)', color: 'var(--accent-ink)' },
   '.cm-panels': { backgroundColor: 'var(--panel)', color: 'var(--text)' },
-  '.cm-searchMatch': { backgroundColor: 'rgba(240,164,58,.3)' },
+  '.cm-searchMatch': { backgroundColor: 'rgba(var(--accent-rgb),.3)' },
 }, { dark: true });
 
 function complete(ctx: CompletionContext) {

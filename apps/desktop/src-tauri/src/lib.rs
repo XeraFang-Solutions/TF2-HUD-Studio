@@ -8,6 +8,7 @@ mod session;
 mod settings;
 #[cfg(any(not(windows), test))]
 mod steam;
+mod theme;
 mod tools;
 
 use hud_core::{anim, images, lint, project, resolve, scheme, vfs};
@@ -840,6 +841,9 @@ pub fn run() {
             tools::tools_open_with,
             imagetools::image_import,
             imagetools::image_png_back,
+            theme::ui_fonts,
+            theme::theme_read,
+            theme::theme_write,
             hudlib::library_get,
             marketplace::marketplace_list,
             marketplace::marketplace_import,

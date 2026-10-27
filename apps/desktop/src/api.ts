@@ -77,6 +77,9 @@ export const inTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in
 
 export const api = {
   appInit: () => invoke<AppInfo>('app_init'),
+  uiFonts: () => invoke<{ id: string; base64: string }[]>('ui_fonts'),
+  themeRead: (path: string) => invoke<string>('theme_read', { path }),
+  themeWrite: (path: string, text: string) => invoke<void>('theme_write', { path, text }),
   settingsSave: (settings: Settings) => invoke<Settings>('settings_save', { settings }),
   gameSetDir: (path: string) => invoke<GameInfo>('game_set_dir', { path }),
   projectOpen: (path: string) => invoke<ProjectInfo>('project_open', { path }),

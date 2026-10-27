@@ -1,12 +1,12 @@
 {
   "name": "hud-studio-desktop",
-  "version": "1.1.4",
+  "version": "1.2.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "tsc --noEmit && vite build",
-    "test": "node --test --experimental-strip-types src/vgui/*.test.ts",
+    "test": "node --test --experimental-strip-types src/vgui/*.test.ts src/*.test.ts",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
     "tauri": "tauri"
