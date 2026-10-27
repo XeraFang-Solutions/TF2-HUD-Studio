@@ -9,6 +9,7 @@ import { linter, lintGutter, type Diagnostic as CmDiagnostic } from '@codemirror
 import { tags as t } from '@lezer/highlight';
 import { getState, setSource, useStore } from '../store.ts';
 import { PROPS } from '../vgui/catalog.ts';
+import { editorPos, lineBreakOf } from '../vgui/offsets.ts';
 
 type KvState = { strings: number; anim: boolean };
 const External = Annotation.define<boolean>();
@@ -130,16 +131,21 @@ export function CodeEditor({ path }: { path: string }) {
       linter((v) => {
         const d = getState().docs[path];
         if (!d) return [];
-        return d.diagnostics.map((x): CmDiagnostic => ({ from: Math.min(x.span.start, v.state.doc.length), to: Math.min(Math.max(x.span.end, x.span.start + 1), v.state.doc.length), severity: 'error', message: x.message }));
+        const len = v.state.doc.length;
+        return d.diagnostics.map((x): CmDiagnostic => {
+          const from = Math.min(editorPos(d.source, x.span.start), len);
+          return { from, to: Math.min(Math.max(editorPos(d.source, x.span.end), from + 1), len), severity: 'error', message: x.message };
+        });
       }, { delay: 400 }),
       keymap.of([...defaultKeymap, ...historyKeymap, ...foldKeymap, ...searchKeymap, indentWithTab]),
       kvLanguage(anim), syntaxHighlighting(highlight), theme,
       EditorState.tabSize.of(4),
+      EditorState.lineSeparator.of(lineBreakOf(getState().docs[path]?.source ?? '')),
       EditorView.updateListener.of((u) => {
         if (u.selectionSet || u.docChanged) cursorLines.set(path, u.state.doc.lineAt(u.state.selection.main.head).number);
         if (!u.docChanged || u.transactions.every((tr) => tr.annotation(External))) return;
         if (timer.current) clearTimeout(timer.current);
-        const text = u.state.doc.toString();
+        const text = u.state.sliceDoc();
         timer.current = setTimeout(() => {
           timer.current = null;
           void setSource(path, text);
@@ -151,7 +157,7 @@ export function CodeEditor({ path }: { path: string }) {
     return () => {
       if (timer.current) {
         clearTimeout(timer.current);
-        void setSource(path, v.state.doc.toString());
+        void setSource(path, v.state.sliceDoc());
       }
       v.destroy();
       view.current = null;
@@ -162,7 +168,7 @@ export function CodeEditor({ path }: { path: string }) {
   useEffect(() => {
     const v = view.current;
     if (!v || !doc) return;
-    const current = v.state.doc.toString();
+    const current = v.state.sliceDoc();
     if (current === doc.source || timer.current) return;
     const sel = Math.min(v.state.selection.main.head, doc.source.length);
     v.dispatch({ changes: { from: 0, to: current.length, insert: doc.source }, selection: { anchor: sel }, annotations: External.of(true) });
@@ -173,7 +179,7 @@ export function CodeEditor({ path }: { path: string }) {
     if (!v || !reveal || reveal.file !== path) return;
     const len = v.state.doc.length;
     let pos = 0;
-    if (reveal.offset !== undefined) pos = Math.min(reveal.offset, len);
+    if (reveal.offset !== undefined) pos = Math.min(editorPos(doc?.source ?? v.state.sliceDoc(), reveal.offset), len);
     else if (reveal.line) pos = v.state.doc.line(Math.min(Math.max(1, reveal.line), v.state.doc.lines)).from;
     const line = v.state.doc.lineAt(pos);
     v.dispatch({ selection: { anchor: line.from, head: line.to }, effects: EditorView.scrollIntoView(pos, { y: 'center' }) });

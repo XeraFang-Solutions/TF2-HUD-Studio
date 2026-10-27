@@ -127,7 +127,7 @@ export function fontStyle(props: Record<string, string> | null, minmode = false)
 
 // ── borders ────────────────────────────────────────────────────────────────
 
-/** Outline colors of a scheme border ({Left,Right,Top,Bottom} line lists); image borders fall back to none. */
+/** Outline colors of a scheme border ({Left,Right,Top,Bottom} line lists). Image borders: see `imageBorder`. */
 export function borderSides(scheme: SchemeIndex, name: string | undefined): { left?: string; right?: string; top?: string; bottom?: string; rounded?: boolean } | null {
   if (!name) return null;
   const b = scheme.borders.get(name.toLowerCase());
@@ -140,6 +140,20 @@ export function borderSides(scheme: SchemeIndex, name: string | undefined): { le
   };
   const bg = b.children?.find((c) => c.key.toLowerCase() === 'backgroundtype')?.value;
   return { left: side('left'), right: side('right'), top: side('top'), bottom: side('bottom'), rounded: bg === '2' };
+}
+
+/** A `scalable_image` border: a 9-slice image (corners kept, edges and center stretched) like main menu buttons use. */
+export type ImageBorder = { image: string; src: [number, number]; draw: [number, number] };
+
+export function imageBorder(scheme: SchemeIndex, name: string | undefined): ImageBorder | null {
+  if (!name) return null;
+  const b = scheme.borders.get(name.toLowerCase());
+  const get = (k: string) => b?.children?.find((c) => c.key.toLowerCase() === k && c.value !== undefined)?.value;
+  if (!b || (get('bordertype') ?? '').trim().toLowerCase() !== 'scalable_image') return null;
+  const image = get('image');
+  if (!image) return null;
+  const n = (k: string) => Math.max(0, parseFloat(get(k) ?? '') || 0);
+  return { image, src: [n('src_corner_width'), n('src_corner_height')], draw: [n('draw_corner_width'), n('draw_corner_height')] };
 }
 
 // ── text ───────────────────────────────────────────────────────────────────

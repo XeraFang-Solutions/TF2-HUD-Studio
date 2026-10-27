@@ -95,10 +95,11 @@ fn album_preview(album: &str, cache: &Path) -> Option<Vec<u8>> {
     let mut hash = std::collections::hash_map::DefaultHasher::new();
     album.hash(&mut hash);
     let file = cache.join(format!("{:016x}.image", hash.finish()));
-    let saved = fs::metadata(&file)
-        .ok()
-        .filter(|m| m.len() <= MAX_PREVIEW)
-        .and_then(|m| fs::read(&file).ok().filter(|b| crate::album::image_type(b).is_some()).map(|b| (m, b)));
+    // only read the file once its size is known to be within the limit
+    let saved = match fs::metadata(&file) {
+        Ok(m) if m.len() <= MAX_PREVIEW => fs::read(&file).ok().filter(|b| crate::album::image_type(b).is_some()).map(|b| (m, b)),
+        _ => None,
+    };
     if let Some((meta, bytes)) = &saved {
         if meta.modified().ok().and_then(|t| t.elapsed().ok()).is_some_and(|age| age < Duration::from_secs(86400)) {
             return Some(bytes.clone());

@@ -2,7 +2,7 @@ import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 're
 import { editElements, getState, set, useStore } from '../store.ts';
 import { clientToUnits, computePos, encodeMove, encodeSize, layoutTree, screenUnits, type LayoutBox, type Rect } from '../vgui/layout.ts';
 import { findEl, layoutInputs, toEl, walk, type El } from '../vgui/model.ts';
-import { alignment, borderSides, fontStyle, sampleText, type RGBA, type SchemeIndex } from '../vgui/scheme.ts';
+import { alignment, borderSides, fontStyle, imageBorder, sampleText, type RGBA, type SchemeIndex } from '../vgui/scheme.ts';
 import { controlKind } from '../vgui/catalog.ts';
 import { evaluate, expand } from '../vgui/anim.ts';
 import { useCachedImage as useImage } from '../vgui/imageCache.ts';
@@ -84,6 +84,36 @@ function ImageLayer({ name, tint, scale, tile, k, w, h }: { name: string; tint: 
             WebkitMaskRepeat: tile ? 'repeat' : 'no-repeat',
             opacity,
           }}
+        />
+      )}
+    </>
+  );
+}
+
+/**
+ * A 9-slice image (ScalableImagePanel / CTFImagePanel corners, or a `scalable_image` scheme border): the source corners
+ * (texture pixels) are drawn at a fixed size (units) and the edges and center stretch to fill the panel.
+ */
+function NineSlice({ name, src, draw, tint, k }: { name: string; src: [number, number]; draw: [number, number]; tint: RGBA | null; k: number }) {
+  const img = useImage(name);
+  if (!img) return null;
+  const sw = Math.min(src[0], img.width / 2);
+  const sh = Math.min(src[1], img.height / 2);
+  const widths = `${draw[1] * k}px ${draw[0] * k}px`;
+  const url = `url(${img.dataUrl})`;
+  const box: React.CSSProperties = { position: 'absolute', inset: 0, boxSizing: 'border-box', borderStyle: 'solid', borderColor: 'transparent', borderWidth: widths, pointerEvents: 'none' };
+  const white = !tint || (tint[0] === 255 && tint[1] === 255 && tint[2] === 255);
+  const opacity = tint ? tint[3] / 255 : 1;
+  return (
+    <>
+      <div style={{ ...box, borderImageSource: url, borderImageSlice: `${sh} ${sw} fill`, borderImageRepeat: 'stretch', opacity }} />
+      {!white && (
+        <div
+          style={{
+            position: 'absolute', inset: 0, pointerEvents: 'none', opacity, mixBlendMode: 'multiply',
+            background: `rgb(${tint![0]},${tint![1]},${tint![2]})`,
+            WebkitMaskBoxImage: `${url} ${sh} ${sw} / ${widths} stretch`,
+          } as React.CSSProperties}
         />
       )}
     </>
@@ -232,7 +262,9 @@ function ElementView({ el, ctx, parentBox }: { el: El; ctx: Ctx; parentBox: Rect
   const bgRaw = v('bgcolor_override') ?? (kind === 'panel' ? v('bgcolor') : undefined);
   if (bgRaw && v('paintbackground') !== '0') style.background = ctx.scheme.css(bgRaw);
   if (v('paintbackgroundtype') === '2') style.borderRadius = 6 * k;
-  const border = borderSides(ctx.scheme, v('border'));
+  const borderName = v('border') ?? (kind === 'button' ? v('border_default') : undefined);
+  const imgBorder = v('paintborder') !== '0' ? imageBorder(ctx.scheme, borderName) : null;
+  const border = imgBorder ? null : borderSides(ctx.scheme, borderName);
   if (border && v('paintborder') !== '0') {
     const w = Math.max(1, k * 0.6);
     if (border.left) style.borderLeft = `${w}px solid ${border.left}`;
@@ -259,7 +291,11 @@ function ElementView({ el, ctx, parentBox }: { el: El; ctx: Ctx; parentBox: Rect
     if (fill) style.background = ctx.scheme.css(fill);
     const image = v('image') || v('teambg_2') || v('image_default') || v('teambg_1');
     const tint = ctx.scheme.color(v('drawcolor_override') ?? v('drawcolor')) ?? null;
-    if (image) content = <ImageLayer name={image} tint={tint} scale={truthy(v('scaleimage')) || el.control.includes('scalable') || el.control.includes('ctfimagepanel')} tile={truthy(v('tileimage'))} k={k} w={box.w} h={box.h} />;
+    const scalable = el.control.includes('scalable') || el.control.includes('ctfimagepanel');
+    const src: [number, number] = [num(v('src_corner_width'), 0), num(v('src_corner_height'), 0)];
+    if (image && scalable && (src[0] > 0 || src[1] > 0)) {
+      content = <NineSlice name={image} src={src} draw={[num(v('draw_corner_width'), 0), num(v('draw_corner_height'), 0)]} tint={tint} k={k} />;
+    } else if (image) content = <ImageLayer name={image} tint={tint} scale={truthy(v('scaleimage')) || scalable} tile={truthy(v('tileimage'))} k={k} w={box.w} h={box.h} />;
   } else if (kind === 'label' || kind === 'button' || kind === 'richtext') {
     const text = sampleText(v('labeltext') ?? v('text'), ctx.localized);
     const f = fontStyle(ctx.scheme.font(v('font'), ctx.screenPx));
@@ -303,6 +339,7 @@ function ElementView({ el, ctx, parentBox }: { el: El; ctx: Ctx; parentBox: Rect
       data-uid={el.uid}
       onPointerDown={interactive ? (e) => ctx.onDown(e, el) : undefined}
     >
+      {imgBorder && <NineSlice name={imgBorder.image} src={imgBorder.src} draw={imgBorder.draw} tint={null} k={k} />}
       {content}
       {children.map((c) => <ElementView key={c.uid} el={c} ctx={ctx} parentBox={box} />)}
     </div>
