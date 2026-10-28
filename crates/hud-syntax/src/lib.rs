@@ -126,7 +126,8 @@ fn text(source: &str, token: &Token) -> String {
     }
 }
 
-/// KeyValues only treats `\"` and `\\` (plus \n, \t) specially inside quoted strings.
+/// Only `\"` and `\\` are treated specially inside quoted strings. TF2 reads .res and .vmt files without escape
+/// sequences, so `\t`, `\n` and friends are plain text: `vgui\replay\thumbnails\x` is a path, not a tab.
 fn unescape(raw: &str) -> String {
     if !raw.contains('\\') {
         return raw.to_string();
@@ -138,8 +139,6 @@ fn unescape(raw: &str) -> String {
             match chars.next() {
                 Some('"') => out.push('"'),
                 Some('\\') => out.push('\\'),
-                Some('n') => out.push('\n'),
-                Some('t') => out.push('\t'),
                 Some(other) => {
                     out.push('\\');
                     out.push(other)
@@ -919,6 +918,12 @@ mod tests {
         let b = &t.roots[0].children[0];
         assert_eq!(b.condition.as_deref(), Some("$WIN32"));
         assert_eq!(b.get("xpos"), Some("1"));
+    }
+    #[test]
+    fn backslash_paths_stay_paths() {
+        let t = tree("\"UnlitGeneric\" { \"$baseTexture\" \"vgui\\replay\\thumbnails\\square_mask\" \"note\" \"a\\nb\" }");
+        assert_eq!(t.roots[0].get("$baseTexture"), Some("vgui\\replay\\thumbnails\\square_mask"));
+        assert_eq!(t.roots[0].get("note"), Some("a\\nb"));
     }
     #[test]
     fn escaped_quotes_unescape() {

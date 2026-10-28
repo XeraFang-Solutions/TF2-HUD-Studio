@@ -6,14 +6,15 @@ import { findEl, walk, type El, type PropVal } from '../vgui/model.ts';
 import { ALIGNMENTS, hexOf, type SchemeIndex } from '../vgui/scheme.ts';
 import { PIN_CORNERS, encodeMove, layoutTree, screenUnits, type LayoutBox } from '../vgui/layout.ts';
 import { layoutInputs } from '../vgui/model.ts';
-import { PROPS, PROP_GROUPS, propInfo, type PropType } from '../vgui/catalog.ts';
+import { PROPS, PROP_GROUPS, controlKind, propInfo, type PropType } from '../vgui/catalog.ts';
+import { defaultFor, type DefaultSource } from '../vgui/defaults.ts';
 import { useImagePreview } from './Assets.tsx';
 import { Select, SuggestInput } from './Select.tsx';
 
 const short = (f: string) => f.replace(/^stock:/, 'TF2 default: ').split('/').slice(-2).join('/');
 
-function Badge({ pv, el }: { pv?: PropVal; el: El }) {
-  if (!pv) return <span className="prov none" title="Not set — the game default applies">default</span>;
+function Badge({ pv, el, fallback }: { pv?: PropVal; el: El; fallback?: DefaultSource }) {
+  if (!pv) return <span className="prov none" title={fallback ? `Not set: TF2 uses ${fallback.value} (${fallback.from})` : 'Not set — the game default applies'}>default</span>;
   const own = pv.file === el.home.file;
   const stock = pv.file.startsWith('stock:') || pv.file.startsWith('tf/') || !pv.blockId;
   return (
@@ -23,11 +24,11 @@ function Badge({ pv, el }: { pv?: PropVal; el: El }) {
   );
 }
 
-function ColorEditor({ value, onCommit, scheme }: { value: string; onCommit: (v: string) => void; scheme: SchemeIndex }) {
-  const c = scheme.color(value);
+function ColorEditor({ value, onCommit, scheme, placeholder }: { value: string; onCommit: (v: string) => void; scheme: SchemeIndex; placeholder?: string }) {
+  const c = scheme.color(value || placeholder);
   return (
     <span className="color-edit">
-      <label className="swatch" style={{ ['--c' as string]: c ? `rgba(${c[0]},${c[1]},${c[2]},${c[3] / 255})` : 'transparent' }} title={c ? c.join(' ') : 'Unresolved color'}>
+      <label className={'swatch' + (!value && placeholder ? ' is-default' : '')} style={{ ['--c' as string]: c ? `rgba(${c[0]},${c[1]},${c[2]},${c[3] / 255})` : 'transparent' }} title={c ? c.join(' ') : 'Unresolved color'}>
         <input
           type="color"
           value={c ? hexOf(c) : '#ffffff'}
@@ -38,7 +39,7 @@ function ColorEditor({ value, onCommit, scheme }: { value: string; onCommit: (v:
           }}
         />
       </label>
-      <TextEditor value={value} onCommit={onCommit} list="scheme-colors" />
+      <TextEditor value={value} onCommit={onCommit} list="scheme-colors" placeholder={placeholder} />
     </span>
   );
 }
@@ -83,21 +84,21 @@ function ImageEditor({ value, onCommit }: { value: string; onCommit: (v: string)
   );
 }
 
-function Editor({ type, value, onCommit, scheme, siblings }: { type: PropType; value: string; onCommit: (v: string) => void; scheme: SchemeIndex; siblings: string[] }) {
+function Editor({ type, value, onCommit, scheme, siblings, placeholder }: { type: PropType; value: string; onCommit: (v: string) => void; scheme: SchemeIndex; siblings: string[]; placeholder?: string }) {
   switch (type) {
     case 'color':
-      return <ColorEditor value={value} onCommit={onCommit} scheme={scheme} />;
+      return <ColorEditor value={value} onCommit={onCommit} scheme={scheme} placeholder={placeholder} />;
     case 'bool':
       return (
         <label className="toggle">
-          <input type="checkbox" checked={value.trim() !== '0' && value.trim() !== ''} onChange={(e) => onCommit(e.target.checked ? '1' : '0')} />
+          <input type="checkbox" checked={(value || placeholder || '').trim() !== '0' && (value || placeholder || '').trim() !== ''} onChange={(e) => onCommit(e.target.checked ? '1' : '0')} />
           <span />
         </label>
       );
     case 'font':
-      return <TextEditor value={value} onCommit={onCommit} list="scheme-fonts" />;
+      return <TextEditor value={value} onCommit={onCommit} list="scheme-fonts" placeholder={placeholder} />;
     case 'border':
-      return <TextEditor value={value} onCommit={onCommit} list="scheme-borders" />;
+      return <TextEditor value={value} onCommit={onCommit} list="scheme-borders" placeholder={placeholder} />;
     case 'alignment':
       return (
         <Select className="prop-input" value={ALIGNMENTS.includes(value.toLowerCase()) ? value.toLowerCase() : value} onChange={(e) => onCommit(e.target.value)}>
@@ -121,7 +122,7 @@ function Editor({ type, value, onCommit, scheme, siblings }: { type: PropType; v
     case 'image':
       return <ImageEditor value={value} onCommit={onCommit} />;
     default:
-      return <TextEditor value={value} onCommit={onCommit} />;
+      return <TextEditor value={value} onCommit={onCommit} placeholder={placeholder} />;
   }
 }
 
@@ -273,6 +274,12 @@ export function Inspector() {
   }
   // always offer the layout basics, even when unset
   for (const k of ['xpos', 'ypos', 'zpos', 'wide', 'tall', 'visible']) if (!keys.has(k) && (!filter || k.includes(filter))) groups.set('Layout', [...(groups.get('Layout') ?? []), k]);
+  // buttons: offer their state colors with the values TF2 falls back to
+  const offered = controlKind(el.control) === 'button'
+    ? ['defaultfgcolor_override', 'defaultbgcolor_override', 'armedfgcolor_override', 'armedbgcolor_override', ...(el.control.includes('imagebutton') ? ['image_drawcolor', 'image_armedcolor'] : [])]
+    : [];
+  for (const k of offered) if (!keys.has(k) && (!filter || k.includes(filter.toLowerCase()))) groups.set('Colors', [...(groups.get('Colors') ?? []), k]);
+  const fallbackOf = (k: string) => (el.props.has(k) ? undefined : defaultFor(el.control, k, (x) => el.props.get(x)?.value, (n) => scheme.base(n)));
   const commit = (key: string, value: string | null) => void editElements([{ el, key, value }]);
   const homeStock = el.home.file.startsWith('stock:');
 
@@ -312,10 +319,10 @@ export function Inspector() {
                 <div className="prop-row" key={k} title={info.doc}>
                   <span className="prop-name">{pv?.key ?? k}</span>
                   <span className="prop-editor">
-                    <Editor type={info.type} value={pv?.value ?? ''} onCommit={(v) => commit(pv?.key ?? k, v)} scheme={scheme} siblings={siblings} />
+                    <Editor type={info.type} value={pv?.value ?? ''} placeholder={fallbackOf(k)?.value} onCommit={(v) => commit(pv?.key ?? k, v)} scheme={scheme} siblings={siblings} />
                   </span>
                   <span className="prop-meta">
-                    <Badge pv={pv} el={el} />
+                    <Badge pv={pv} el={el} fallback={fallbackOf(k)} />
                     {canReset && <button className="icon-btn tiny" title="Remove from this file (falls back to inherited/default)" onClick={() => commit(pv!.key, null)}><RotateCcw size={11} /></button>}
                   </span>
                 </div>

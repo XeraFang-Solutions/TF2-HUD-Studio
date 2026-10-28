@@ -38,6 +38,16 @@ export const PROPS: Record<string, PropInfo> = {
   paintborder: P('bool', 'Colors', 'Draw the border.'),
   border: P('border', 'Colors', 'Scheme border name.'),
   alpha: P('int', 'Colors', 'Opacity 0–255.'),
+  defaultfgcolor_override: P('color', 'Colors', 'Button text color. Unset: the scheme’s Button.TextColor.'),
+  defaultbgcolor_override: P('color', 'Colors', 'Button background. Unset: the scheme’s Button.BgColor.'),
+  armedfgcolor_override: P('color', 'Colors', 'Button text color under the mouse. Unset: Button.ArmedTextColor, else the default text color.'),
+  armedbgcolor_override: P('color', 'Colors', 'Button background under the mouse. Unset: Button.ArmedBgColor, else the default background.'),
+  depressedfgcolor_override: P('color', 'Colors', 'Button text color while pressed. Unset: the default text color.'),
+  depressedbgcolor_override: P('color', 'Colors', 'Button background while pressed. Unset: the default background.'),
+  image_drawcolor: P('color', 'Colors', 'Tint of an image button’s SubImage.'),
+  image_armedcolor: P('color', 'Colors', 'SubImage tint under the mouse. Unset: image_drawcolor.'),
+  border_default: P('border', 'Colors', 'Button border in its normal state.'),
+  border_armed: P('border', 'Colors', 'Button border under the mouse.'),
   image: P('image', 'Image', 'Material under materials/vgui (no extension). ../ leaves the vgui folder.'),
   scaleimage: P('bool', 'Image', 'Stretch the image to the panel size.'),
   tileimage: P('bool', 'Image', 'Repeat the image across the panel.'),
@@ -89,7 +99,6 @@ export function controlKind(control: string): 'label' | 'image' | 'progress' | '
   if (c.includes('modelpanel') || c === 'cembeddeditemmodelpanel') return 'model';
   if (c.includes('avatar')) return 'avatar';
   if (c.includes('richtext') || c === 'textentry') return 'richtext';
-  if (c.includes('imagebutton')) return 'image';
   if (c.includes('button') || c.includes('checkbutton') || c === 'ccvarslider' || c === 'combobox') return 'button';
   if (c.includes('label') || c.includes('variablelabel')) return 'label';
   if (c.includes('image') || c.includes('iconpanel') || c === 'ctfclassimage' || c === 'ctflogopanel') return 'image';

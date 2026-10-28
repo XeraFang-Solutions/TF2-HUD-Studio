@@ -38,6 +38,11 @@ export class SchemeIndex {
     }
     return null;
   }
+  /** A BaseSettings entry (e.g. "Button.BgColor"), case-insensitive. */
+  base(name: string): string | undefined {
+    const n = name.toLowerCase();
+    return this.scheme?.baseSettings.find(([k]) => k.toLowerCase() === n)?.[1];
+  }
   css(raw: string | undefined, alphaMul = 1): string | undefined {
     const c = this.color(raw);
     return c ? rgbaCss(c, alphaMul) : undefined;

@@ -6,6 +6,7 @@ import { alignment, borderSides, fontStyle, imageBorder, sampleText, type RGBA, 
 import { controlKind } from '../vgui/catalog.ts';
 import { evaluate, expand } from '../vgui/anim.ts';
 import { useCachedImage as useImage } from '../vgui/imageCache.ts';
+import { defaultFor } from '../vgui/defaults.ts';
 
 // ── image cache ────────────────────────────────────────────────────────────
 
@@ -240,7 +241,7 @@ function textShadow(outline: boolean, shadow: boolean, k: number) {
   return s.join(',') || undefined;
 }
 
-function ElementView({ el, ctx, parentBox }: { el: El; ctx: Ctx; parentBox: Rect }) {
+function ElementView({ el, ctx, parentBox, parent }: { el: El; ctx: Ctx; parentBox: Rect; parent?: El }) {
   const box = ctx.boxes.get(el.uid);
   if (!box) return null;
   const v = (k: string) => ctx.value(el, k);
@@ -289,8 +290,10 @@ function ElementView({ el, ctx, parentBox }: { el: El; ctx: Ctx; parentBox: Rect
   } else if (kind === 'image') {
     const fill = v('fillcolor');
     if (fill) style.background = ctx.scheme.css(fill);
-    const image = v('image') || v('teambg_2') || v('image_default') || v('teambg_1');
-    const tint = ctx.scheme.color(v('drawcolor_override') ?? v('drawcolor')) ?? null;
+    // A CExImageButton draws its image in its SubImage child: image_default replaces that image, image_drawcolor tints it.
+    const owner = parent && lname === 'subimage' && parent.control.includes('imagebutton') ? parent : null;
+    const image = (owner && ctx.value(owner, 'image_default')) || v('image') || v('teambg_2') || v('image_default') || v('teambg_1');
+    const tint = ctx.scheme.color((owner ? ctx.value(owner, 'image_drawcolor') : undefined) ?? v('drawcolor_override') ?? v('drawcolor')) ?? null;
     const scalable = el.control.includes('scalable') || el.control.includes('ctfimagepanel');
     const src: [number, number] = [num(v('src_corner_width'), 0), num(v('src_corner_height'), 0)];
     if (image && scalable && (src[0] > 0 || src[1] > 0)) {
@@ -341,7 +344,7 @@ function ElementView({ el, ctx, parentBox }: { el: El; ctx: Ctx; parentBox: Rect
     >
       {imgBorder && <NineSlice name={imgBorder.image} src={imgBorder.src} draw={imgBorder.draw} tint={null} k={k} />}
       {content}
-      {children.map((c) => <ElementView key={c.uid} el={c} ctx={ctx} parentBox={box} />)}
+      {children.map((c) => <ElementView key={c.uid} el={c} ctx={ctx} parentBox={box} parent={el} />)}
     </div>
   );
 }
@@ -403,6 +406,12 @@ export function Canvas() {
   }, [animCmds, playback?.t, model, scheme]);
 
   const value = useMemo(() => makeValue(overrides, animValues), [overrides, animValues]);
+  // Drawing falls back to what TF2 uses when the HUD leaves a setting out (scheme BaseSettings, engine defaults).
+  const drawValue = useMemo(() => (el: El, key: string) => {
+    const own = value(el, key);
+    if (own !== undefined) return own;
+    return defaultFor(el.control, key, (k) => value(el, k), (n) => scheme.base(n))?.value;
+  }, [value, scheme]);
   const boxes = useMemo(() => {
     const out = new Map<string, LayoutBox>();
     layoutTree(layoutInputs(model, value), screen, out);
@@ -612,7 +621,7 @@ export function Canvas() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  const ctx: Ctx = { k, value, boxes, scheme, screenPx: resolution.h, showHidden, hidden, localized, selection: sel, onDown };
+  const ctx: Ctx = { k, value: drawValue, boxes, scheme, screenPx: resolution.h, showHidden, hidden, localized, selection: sel, onDown };
   const top = [...model].sort((a, b) => (boxes.get(a.uid)?.z ?? 0) - (boxes.get(b.uid)?.z ?? 0));
   const selBoxes = selection.map((u) => boxes.get(u)).filter((b): b is LayoutBox => !!b);
   const single = selBoxes.length === 1 ? selBoxes[0] : null;

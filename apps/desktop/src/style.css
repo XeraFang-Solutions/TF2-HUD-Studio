@@ -518,3 +518,4 @@ code, kbd { font-family: var(--mono); font-size: 12px; background: var(--sunken)
 .field input[type=range] { height: auto; padding: 0; border: 0; background: none; }
 .theme-color .swatch { box-shadow: inset 0 0 0 1px rgba(var(--text-rgb), .28); }
 .field-row > .select { flex: 1; }
+.swatch.is-default { opacity: .55; }
